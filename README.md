@@ -73,7 +73,7 @@ Some of needs to cover:
 
 Identified in 4 steps to answer needs described above.
 
-We are in step 2 - List existing plugins in a Jenkins installation
+We are in step 3 - Read public repo and compare installed plugins
 
 You can contribute to the project. Follow the usual Issues/Pull Request mechanism
 
@@ -96,5 +96,24 @@ go build
 
 NOTE1: GO is not required as GO is running from docker.
 NOTE2: To use docker go, we load a build environment `source build_env.sh` or `build-env` (alias) to be able to run usual go command with docker.
+
+## How to use it
+
+- How to install it?
+
+    ```bash
+    wget https://github.com/forj-oss/jplugins/releases/download/0.0.1/jplugins
+    chmod +x ./jplugins
+    ```
+
+- How to list plugins?
+
+    ```bash
+    jplugins list-installed
+    [...]
+    83 plugins
+    ```
+
+    You can use --jenkins-home if your jenkins installation is not in the default `/var/jenkins_home`
 
 Forj team
