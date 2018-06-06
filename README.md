@@ -89,7 +89,8 @@ mkdir ~/go/src
 cd ~/go/src
 git clone https://github.com/forj-oss/jplugins.git
 cd jplugins
-source build-env.sh
+source build-env.sh    # Loading project build environment for GO.
+create-go-build-env.sh # Building the GO builder
 go build
 ```
 
