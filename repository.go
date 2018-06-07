@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"forjj/utils"
+	"github.com/forj-oss/forjj/utils" 
 	"net/url"
 
 	"github.com/forj-oss/forjj-modules/trace"
