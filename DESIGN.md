@@ -15,3 +15,19 @@ Step: Read public json file and compare
 2. list installed plugins and loop on each of them
 3. if version change, identify the change and add missing dependency (new one)
 4. display what changed
+
+Step: Read a features.yaml, and pre-installed list pre-install.lst (if exists) and build a features.lock
+
+1. write `jplugins-preinstalled.lst` from an existing installation
+2. read `jplugins-preinstalled.lst` and write a simple lock file `jplugins.lock`
+3. read `jplugins-features.yaml`, apply rules and write the lock file.
+
+Step: Read the lock file, download plugins and install them in Jenkins home
+
+1. read `jplugins.lock` and list plugins
+2. download plugins is series and install them in Jenkins home (must exist)
+
+Step: Parallelize plugins download to accelerate download (POC)
+
+1. Parallelize the download with GO channel
+

@@ -10,6 +10,7 @@ type jPluginsApp struct {
 	listInstalled struct {
 		cmd *kingpin.CmdClause
 		jenkinsHomePath *string
+		preInstalled *bool
 	}
 
 	checkVersions struct {
@@ -27,6 +28,7 @@ func (a *jPluginsApp) init() {
 
 	a.listInstalled.cmd = a.app.Command("list-installed", "Display Jenkins plugins list of current Jenkins installation.")
 	a.listInstalled.jenkinsHomePath = a.listInstalled.cmd.Flag("jenkins-home", "Where Jenkins is installed.").Default("/var/jenkins_home").String()
+	a.listInstalled.preInstalled =  a.listInstalled.cmd.Flag("save-pre-installed", "To create the jplugins-preinstalled.lst instead displaying.").Bool()
 
 	a.checkVersions.cmd = a.app.Command("check-updates", "Display Jenkins plugins which has updates available from existing Jenkins installation.")
 	a.checkVersions.jenkinsHomePath = a.checkVersions.cmd.Flag("jenkins-home", "Where Jenkins is installed.").Default("/var/jenkins_home").String()

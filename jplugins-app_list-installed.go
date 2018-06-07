@@ -1,12 +1,12 @@
 package main
 
 import (
-	"sort"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/forj-oss/forjj-modules/trace"
@@ -15,6 +15,10 @@ import (
 
 func (a *jPluginsApp) doListInstalled() {
 	if !a.readFromJenkins(*a.listInstalled.jenkinsHomePath) {
+		return
+	}
+	if *a.listInstalled.preInstalled {
+		a.saveVersionAsPreInstalled(*a.listInstalled.jenkinsHomePath, a.installedPlugins)
 		return
 	}
 	a.printOutVersion(a.installedPlugins)
@@ -108,7 +112,6 @@ func (a *jPluginsApp) printOutVersion(plugins plugins) (_ bool) {
 
 	pluginsList := make([]string, len(plugins))
 
-
 	iCount := 0
 	for name := range plugins {
 		pluginsList[iCount] = name
@@ -121,5 +124,37 @@ func (a *jPluginsApp) printOutVersion(plugins plugins) (_ bool) {
 		fmt.Printf("%s: %s\n", name, plugins[name].Version)
 	}
 	fmt.Println(iCount, "plugin(s)")
+	return true
+}
+
+func (a *jPluginsApp) saveVersionAsPreInstalled(jenkinsHomePath string, plugins plugins) (_ bool) {
+	if a.installedPlugins == nil {
+		return
+	}
+
+	pluginsList := make([]string, len(plugins))
+
+	iCount := 0
+	for name := range plugins {
+		pluginsList[iCount] = name
+		iCount++
+	}
+
+	sort.Strings(pluginsList)
+
+	preInstalledFile := path.Join(jenkinsHomePath, "jplugins-preinstalled.lst")
+	piDescriptor, err := os.OpenFile(preInstalledFile, os.O_RDWR|os.O_CREATE, 0644)
+
+	if err != nil {
+		gotrace.Error("Unable to create '%s'. %s", preInstalledFile, err)
+		return
+	}
+
+	defer piDescriptor.Close()
+
+	for _, name := range pluginsList {
+		fmt.Fprintf(piDescriptor, "plugin:%s:%s\n", name, plugins[name].Version)
+	}
+	fmt.Printf("%d plugin(s) saved in '%s'\n", iCount, preInstalledFile)
 	return true
 }
