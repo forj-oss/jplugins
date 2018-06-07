@@ -73,7 +73,7 @@ Some of needs to cover:
 
 Identified in 4 steps to answer needs described above.
 
-We are in step 3 - Read public repo and compare installed plugins
+We are in step 4 - Lock version for docker build.
 
 You can contribute to the project. Follow the usual Issues/Pull Request mechanism
 
@@ -109,11 +109,25 @@ NOTE2: To use docker go, we load a build environment `source build_env.sh` or `b
 - How to list plugins?
 
     ```bash
-    jplugins list-installed
+    $ jplugins list-installed
     [...]
     83 plugins
     ```
 
     You can use --jenkins-home if your jenkins installation is not in the default `/var/jenkins_home`
+
+- How to check jenkins updates?
+
+    ```bash
+    $ jplugins check-updates
+    [...]
+    bouncycastle API Plugin                             : 2.16.0     => 2.16.3
+    inheritance-plugin                                  : 1.5.3      => 2.0.0
+    vSphere Plugin                                      : 1.1.11     => 2.17
+
+    Found 45 plugin(s) updates available.
+    1480 plugins loaded.
+    83 plugins installed.
+    ```
 
 Forj team
