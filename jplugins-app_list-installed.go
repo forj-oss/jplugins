@@ -108,7 +108,7 @@ func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 	return true
 }
 
-// readFromPreInstalled load installed plugins from the pre-installed 
+// readFromPreInstalled load installed plugins from the pre-installed
 func (a *jPluginsApp) readFromPreInstalled(preInstalledPath string) (_ bool) {
 	filePath := path.Join(preInstalledPath, preInstalledFileName)
 	fd, err := os.Open(filePath)
@@ -132,13 +132,12 @@ func (a *jPluginsApp) readFromPreInstalled(preInstalledPath string) (_ bool) {
 		pluginData.Name = pluginRecord[1]
 		pluginData.Version = pluginRecord[2]
 
-		refPlugin, found := a.repository.Plugins[pluginData.Name] 
-		if !found {
+		if refPlugin, found := a.repository.Plugins[pluginData.Name]; !found {
 			gotrace.Warning("plugin '%s' is not recognized. Ignored.")
-			continue
+		} else {
+			pluginData.LongName = refPlugin.Title
+			pluginData.Description = refPlugin.Description
 		}
-		pluginData.LongName = refPlugin.Title
-		pluginData.Description = refPlugin.Description
 		a.installedPlugins[pluginData.Name] = pluginData
 	}
 	return true
@@ -197,4 +196,3 @@ func (a *jPluginsApp) saveVersionAsPreInstalled(jenkinsHomePath string, plugins 
 	fmt.Printf("%d plugin(s) saved in '%s'\n", iCount, preInstalledFile)
 	return true
 }
-

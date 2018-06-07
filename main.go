@@ -18,5 +18,11 @@ func main() {
 		App.doListInstalled()
 	case App.checkVersions.cmd.FullCommand():
 		App.doCheckInstalled()
+	case App.initCmd.cmd.FullCommand():
+		App.doInit()
+		/*	case App.update.cmd.FullCommand():
+			App.doUpdate()*/
+		/*	case App.install.cmd.FullCommand():
+			App.doInstall()*/
 	}
 }
