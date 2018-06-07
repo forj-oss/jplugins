@@ -14,15 +14,15 @@ import (
 )
 
 func (a *jPluginsApp) doListInstalled() {
-	if !a.readFromJenkins() {
+	if !a.readFromJenkins(*a.listInstalled.jenkinsHomePath) {
 		return
 	}
 	a.printOutVersion(a.installedPlugins)
 }
 
 // readFromJenkins read manifest of each plugins and store information in a.installedPlugins
-func (a *jPluginsApp) readFromJenkins() (_ bool) {
-	pluginsPath := path.Join(*a.jenkinsHomePath, "plugins")
+func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
+	pluginsPath := path.Join(jenkinsHomePath, "plugins")
 
 	a.installedPlugins = make(plugins)
 
