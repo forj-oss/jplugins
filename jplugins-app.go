@@ -7,8 +7,15 @@ import (
 type jPluginsApp struct {
 	app *kingpin.Application
 
-	listInstalled *kingpin.CmdClause
-	jenkinsHomePath *string
+	listInstalled struct {
+		cmd *kingpin.CmdClause
+		jenkinsHomePath *string
+	}
+
+	checkVersions struct {
+		cmd  *kingpin.CmdClause
+		jenkinsHomePath *string
+	}
 
 	installedPlugins plugins
 }
@@ -18,6 +25,9 @@ func (a *jPluginsApp) init() {
 
 	a.setVersion()
 
-	a.listInstalled = a.app.Command("list-installed", "Display Jenkins plugins list of current Jenkins installation.")
-	a.jenkinsHomePath = a.listInstalled.Flag("jenkins-home", "Where Jenkins is installed.").Default("/var/jenkins_home").String()
+	a.listInstalled.cmd = a.app.Command("list-installed", "Display Jenkins plugins list of current Jenkins installation.")
+	a.listInstalled.jenkinsHomePath = a.listInstalled.cmd.Flag("jenkins-home", "Where Jenkins is installed.").Default("/var/jenkins_home").String()
+
+	a.checkVersions.cmd = a.app.Command("check-updates", "Display Jenkins plugins which has updates available from existing Jenkins installation.")
+	a.checkVersions.jenkinsHomePath = a.checkVersions.cmd.Flag("jenkins-home", "Where Jenkins is installed.").Default("/var/jenkins_home").String()
 }
