@@ -2,3 +2,8 @@ package: jplugins
 import:
 - package: github.com/alecthomas/kingpin
   version: ^2.2.6
+- package: github.com/hashicorp/go-version
+- package: github.com/forj-oss/forjj-modules
+- package: github.com/forj-oss/forjj
+  subpackages:
+  - utils

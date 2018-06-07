@@ -1,5 +1,5 @@
-hash: 04b557e5a7dcbfa9433919257b15c7db9d5f51c5c275e784fa62672e64976198
-updated: 2018-06-06T17:01:27.688463077Z
+hash: aa5df739e6e1b00546667bfa2a7b829c5c1d411a8e865a3ad2f0d2580c9aeb39
+updated: 2018-06-07T18:33:44.327470041Z
 imports:
 - name: github.com/alecthomas/kingpin
   version: 947dcec5ba9c011838740e680966fd7087a71d0d
@@ -11,10 +11,18 @@ imports:
   version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
 - name: github.com/fatih/color
   version: 2d684516a8861da43017284349b7e303e809ac21
+- name: github.com/forj-oss/forjj
+  version: 4529a3633e42f2edd4117a70be28001779b7f1f2
+  subpackages:
+  - utils
 - name: github.com/forj-oss/forjj-modules
   version: 45525459714d36e6eb5f3ee574e90997b81712cf
   subpackages:
   - trace
+- name: github.com/hashicorp/go-version
+  version: 23480c0665776210b5fbbac6eaaee40e3e6a96b7
+- name: github.com/kvz/logstreamer
+  version: a635b98146f0f465f3413a0b8ec481f3698d3fc2
 - name: github.com/mattn/go-colorable
   version: efa589957cd060542a26d2dd7832fd6a6c6c3ade
 - name: github.com/mattn/go-isatty
