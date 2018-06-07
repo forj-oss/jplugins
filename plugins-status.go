@@ -34,7 +34,7 @@ func (s *pluginsStatus) compare(installed plugins, ref *repository) {
 	for name, plugin := range installed {
 		refPlugin, found := ref.get(name)
 		if !found {
-			gotrace.Trace("Installed plugin '%s' not found in the Jenkins repository.", name)
+			s.obsolete(plugin)
 			continue
 		}
 		if plugin.Version != refPlugin.Version {
@@ -65,6 +65,16 @@ func (s *pluginsStatus) add(version string, plugin repositoryPlugin) {
 		oldVersion: version,
 		newVersion: plugin.Version,
 	}
+}
+
+func (s *pluginsStatus) obsolete(plugin *pluginManifest) {
+	s.plugins[plugin.Name] = pluginsStatusDetails{
+		name:       plugin.Name,
+		title:      plugin.LongName,
+		oldVersion: plugin.Version,
+		newVersion: "obsolete",
+	}
+
 }
 
 func (s *pluginsStatus) displayUpdates() (_ bool) {
