@@ -90,21 +90,21 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 	pluginsList := make([]string, len(s.plugins))
 	pluginsDetails := make(map[string]pluginsStatusDetails)
 	iCount := 0
-	iMax := 0
+	iMaxTitle := 0
 	for _, plugin := range s.plugins {
 		pluginsList[iCount] = plugin.title
 		pluginsDetails[plugin.title] = plugin
-		if val := len(plugin.title); val > iMax {
-			iMax = val
+		if val := len(plugin.title) + len(plugin.name); val > iMaxTitle {
+			iMaxTitle = val
 		}
 		iCount++
 	}
 
 	sort.Strings(pluginsList)
 
-	for _, name := range pluginsList {
-		plugin := pluginsDetails[name]
-		fmt.Printf("%-"+strconv.Itoa(iMax)+"s : %-10s => %s\n", name, plugin.oldVersion, plugin.newVersion)
+	for _, title := range pluginsList {
+		plugin := pluginsDetails[title]
+		fmt.Printf("%-"+strconv.Itoa(iMaxTitle + 3)+"s : %-10s => %s\n", title+" ("+plugin.name+")", plugin.oldVersion, plugin.newVersion)
 	}
 
 	fmt.Printf("\nFound %d plugin(s) updates available.\n", iCount)
