@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"github.com/forj-oss/forjj-modules/trace"
 	"gopkg.in/yaml.v2"
 )
+
+const preInstalledFileName = "jplugins-preinstalled.lst"
 
 func (a *jPluginsApp) doListInstalled() {
 	if !a.readFromJenkins(*a.listInstalled.jenkinsHomePath) {
@@ -105,6 +108,42 @@ func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 	return true
 }
 
+// readFromPreInstalled load installed plugins from the pre-installed 
+func (a *jPluginsApp) readFromPreInstalled(preInstalledPath string) (_ bool) {
+	filePath := path.Join(preInstalledPath, preInstalledFileName)
+	fd, err := os.Open(filePath)
+	if err != nil {
+		gotrace.Error("Unable to open file '%s'. %s", filePath, err)
+		return
+	}
+
+	defer fd.Close()
+
+	scanFile := bufio.NewScanner(fd)
+	a.installedPlugins = make(plugins)
+
+	for scanFile.Scan() {
+		line := scanFile.Text()
+		pluginRecord := strings.Split(line, ":")
+		if pluginRecord[0] != "plugin" {
+			continue
+		}
+		pluginData := new(pluginManifest)
+		pluginData.Name = pluginRecord[1]
+		pluginData.Version = pluginRecord[2]
+
+		refPlugin, found := a.repository.Plugins[pluginData.Name] 
+		if !found {
+			gotrace.Warning("plugin '%s' is not recognized. Ignored.")
+			continue
+		}
+		pluginData.LongName = refPlugin.Title
+		pluginData.Description = refPlugin.Description
+		a.installedPlugins[pluginData.Name] = pluginData
+	}
+	return true
+}
+
 func (a *jPluginsApp) printOutVersion(plugins plugins) (_ bool) {
 	if a.installedPlugins == nil {
 		return
@@ -142,7 +181,7 @@ func (a *jPluginsApp) saveVersionAsPreInstalled(jenkinsHomePath string, plugins 
 
 	sort.Strings(pluginsList)
 
-	preInstalledFile := path.Join(jenkinsHomePath, "jplugins-preinstalled.lst")
+	preInstalledFile := path.Join(jenkinsHomePath, preInstalledFileName)
 	piDescriptor, err := os.OpenFile(preInstalledFile, os.O_RDWR|os.O_CREATE, 0644)
 
 	if err != nil {
@@ -158,3 +197,4 @@ func (a *jPluginsApp) saveVersionAsPreInstalled(jenkinsHomePath string, plugins 
 	fmt.Printf("%d plugin(s) saved in '%s'\n", iCount, preInstalledFile)
 	return true
 }
+

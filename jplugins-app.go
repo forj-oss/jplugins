@@ -16,9 +16,12 @@ type jPluginsApp struct {
 	checkVersions struct {
 		cmd  *kingpin.CmdClause
 		jenkinsHomePath *string
+		usePreInstalled *bool
+		preInstalledPath *string
 	}
 
 	installedPlugins plugins
+	repository *repository
 }
 
 func (a *jPluginsApp) init() {
@@ -32,4 +35,6 @@ func (a *jPluginsApp) init() {
 
 	a.checkVersions.cmd = a.app.Command("check-updates", "Display Jenkins plugins which has updates available from existing Jenkins installation.")
 	a.checkVersions.jenkinsHomePath = a.checkVersions.cmd.Flag("jenkins-home", "Where Jenkins is installed.").Default("/var/jenkins_home").String()
+	a.checkVersions.usePreInstalled = a.checkVersions.cmd.Flag("use-pre-installed", "To use pre-installed list instead of jenkins plugins directory.").Bool()
+	a.checkVersions.preInstalledPath = a.checkVersions.cmd.Flag("pre-installed-path", "Path to the pre-installed.lst file.").Default("/var/jenkins_home").String()
 }

@@ -19,8 +19,9 @@ Step: Read public json file and compare
 Step: Read a features.yaml, and pre-installed list pre-install.lst (if exists) and build a features.lock
 
 1. write `jplugins-preinstalled.lst` from an existing installation
-2. read `jplugins-preinstalled.lst` and write a simple lock file `jplugins.lock`
-3. read `jplugins-features.yaml`, apply rules and write the lock file.
+2. read `jplugins-preinstalled.lst` and check_updates from this.
+3. read `jplugins-preinstalled.lst` and write a simple lock file `jplugins.lock`
+4. read `jplugins-features.yaml`, apply rules and write the lock file.
 
 Step: Read the lock file, download plugins and install them in Jenkins home
 

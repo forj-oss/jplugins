@@ -27,21 +27,43 @@ func newPluginsStatus() (pluginsCompared *pluginsStatus) {
 }
 
 func (s *pluginsStatus) compare(installed plugins, ref *repository) {
+	if ref == nil {
+		return
+	}
 
 	for name, plugin := range installed {
-		refPlugin, found := ref.Plugins[name]
+		refPlugin, found := ref.get(name)
 		if !found {
 			gotrace.Trace("Installed plugin '%s' not found in the Jenkins repository.", name)
 			continue
 		}
 		if plugin.Version != refPlugin.Version {
-			s.plugins[name] = pluginsStatusDetails{
-				name:       name,
-				title:      plugin.LongName,
-				oldVersion: plugin.Version,
-				newVersion: refPlugin.Version,
+			s.add(plugin.Version, refPlugin)
+		}
+
+		for _, dep := range refPlugin.Dependencies {
+			if dep.Optionnal {
+				return
+			}
+			if _, found = installed[dep.Name]; !found {
+
+				if p, found := ref.get(dep.Name); found {
+					s.add("new", p)
+				} else {
+					gotrace.Trace("Internal repo error: From '%s', dependency '%s' has not been found.", name, dep.Name)
+					continue
+				}
 			}
 		}
+	}
+}
+
+func (s *pluginsStatus) add(version string, plugin repositoryPlugin) {
+	s.plugins[plugin.Name] = pluginsStatusDetails{
+		name:       plugin.Name,
+		title:      plugin.Title,
+		oldVersion: version,
+		newVersion: plugin.Version,
 	}
 }
 
