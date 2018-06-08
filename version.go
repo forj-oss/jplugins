@@ -2,7 +2,7 @@ package main
 
 const (
 	// VERSION application
-	VERSION = "0.0.3"
+	VERSION = "0.0.4"
 	// PRERELEASE = true if the version exposed is a pre-release
 	PRERELEASE = true
 	// AUTHOR is the project maintainer
