@@ -21,12 +21,21 @@ Step: Read a features.yaml, and pre-installed list pre-install.lst (if exists) a
 1. write `jplugins-preinstalled.lst` from an existing installation
 2. read `jplugins-preinstalled.lst` and check_updates from this.
 3. read `jplugins-preinstalled.lst` and write a simple lock file `jplugins.lock`
-4. read `jplugins-features.yaml`, apply rules and write the lock file.
+4. read `jplugins.lst`, apply rules and write the lock file.
 
-Step: Read the lock file, download plugins and install them in Jenkins home
+Step: Read jplugins.lst, from pre-installed plugins and treat features to add groovy and plugin in the list
+1. read `jplugins.lst`, do git clone/update of install-inits, read each desc files requested, add plugins in the list, 
+2. list groovy files
 
-1. read `jplugins.lock` and list plugins
+Step: Read the lock file, download plugins/groovy files and install them in Jenkins home
+
+1. read `jplugins.lock` and list plugins and groovy files.
 2. download plugins is series and install them in Jenkins home (must exist)
+3. git clone install-inits and copy files.
+
+Extra steps:
+step:
+1. take feature version as commit ID.
 
 Step: Parallelize plugins download to accelerate download (POC)
 

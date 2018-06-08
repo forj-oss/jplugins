@@ -188,12 +188,20 @@ func (s *pluginsStatus) checkElement(line string) {
 		fversion = strings.Trim(fields[2], " ")
 	}
 
-	if ftype != "plugin" {
+	switch ftype {
+	case "feature":
+		s.checkFeature(fname)
+	//case "groovy":
+	case "plugin":
+		s.checkPlugin(fname, fversion)
+	default:
 		gotrace.Warning("feature type '%s' is currently not supported. Ignored.", ftype)
 		return
 	}
+}
 
-	s.checkPlugin(fname, fversion)
+func (s *pluginsStatus) checkFeature(name string) {
+
 }
 
 func (s *pluginsStatus) checkPlugin(name, versionConstraints string) {
