@@ -6,15 +6,6 @@ import (
 
 var build_branch, build_commit, build_date, build_tag string
 
-const (
-	// VERSION application
-	VERSION = "0.0.3"
-	// PRERELEASE = true if the version exposed is a pre-release
-	PRERELEASE = true
-	// AUTHOR is the project maintainer
-	AUTHOR = "Christophe Larsonneur <clarsonneur@gmail.com>"
-)
-
 func (a *jPluginsApp) setVersion() {
 	var version string
 
