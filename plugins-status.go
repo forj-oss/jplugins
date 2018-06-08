@@ -1,10 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"forjj/utils"
+	"net/url"
+	"os"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/forj-oss/forjj/git"
 
 	goversion "github.com/hashicorp/go-version"
 
@@ -15,6 +22,9 @@ type pluginsStatus struct {
 	plugins   map[string]*pluginsStatusDetails
 	installed plugins
 	ref       *repository
+	repoPath  string
+	repoURL   []*url.URL
+	useLocal  bool
 }
 
 func newPluginsStatus(installed plugins, ref *repository) (pluginsCompared *pluginsStatus) {
@@ -22,7 +32,43 @@ func newPluginsStatus(installed plugins, ref *repository) (pluginsCompared *plug
 	pluginsCompared.plugins = make(map[string]*pluginsStatusDetails)
 	pluginsCompared.installed = installed
 	pluginsCompared.ref = ref
+	pluginsCompared.repoURL = make([]*url.URL, 0, 3)
 	return
+}
+
+// setLocal set the useLocal to true
+// When set to true, jplugin do not clone a remote repo URL to store on cache
+func (s *pluginsStatus) setLocal() {
+	if s == nil {
+		return
+	}
+	s.useLocal = true
+}
+
+func (s *pluginsStatus) setFeaturesRepoURL(repoURL string) error {
+	if s == nil {
+		return nil
+	}
+
+	if repoURLObject, err := url.Parse(repoURL); err != nil {
+		return fmt.Errorf("Invalid feature repository URL. %s", repoURL)
+	} else {
+		s.repoURL = append(s.repoURL, repoURLObject)
+	}
+	return nil
+}
+
+func (s *pluginsStatus) setFeaturesPath(repoPath string) error {
+	if s == nil {
+		return nil
+	}
+
+	if p, err := utils.Abs(repoPath); err != nil {
+		return fmt.Errorf("Invalid feature repository path. %s", repoPath)
+	} else {
+		s.repoPath = p
+	}
+	return nil
 }
 
 func (s *pluginsStatus) compare() {
@@ -170,14 +216,18 @@ func (s *pluginsStatus) importInstalled(pluginsData plugins) {
 	}
 }
 
-func (s *pluginsStatus) checkElement(line string) {
+func (s *pluginsStatus) checkElement(line string, split func(string, string, string)) {
 	var ftype, fname string
 	var fversion string
+
+	if line == "" || line[0] == '#' {
+		return
+	}
 
 	fields := strings.Split(line, ":")
 	switch len(fields) {
 	case 1:
-		gotrace.Warning("Line %d: Line format is incorrect. It should be <'plugin'|'feature'>:<plugin Name>[:<version>]")
+		gotrace.Warning("Line %s: Line format is incorrect. It should be <'plugin'|'feature'>:<plugin Name>[:<version>]", line)
 		return
 	case 2:
 		ftype = strings.Trim(fields[0], " ")
@@ -188,20 +238,56 @@ func (s *pluginsStatus) checkElement(line string) {
 		fversion = strings.Trim(fields[2], " ")
 	}
 
-	switch ftype {
-	case "feature":
-		s.checkFeature(fname)
-	//case "groovy":
-	case "plugin":
-		s.checkPlugin(fname, fversion)
-	default:
-		gotrace.Warning("feature type '%s' is currently not supported. Ignored.", ftype)
-		return
-	}
+	split(ftype, fname, fversion)
+
 }
 
-func (s *pluginsStatus) checkFeature(name string) {
+func (s *pluginsStatus) checkFeature(name string) (_ bool) {
+	if s == nil {
+		return
+	}
+	if !s.useLocal {
+		gotrace.Error("Git clone of repository not currently implemented.")
+		return
+	}
 
+	if err := git.RunInPath(s.repoPath, func() error {
+		if git.Do("rev-parse", "--git-dir") != 0 {
+			return fmt.Errorf("Not a valid GIT repository.")
+		}
+		return nil
+	}); err != nil {
+		gotrace.Error("Issue with '%s', %s", s.repoPath, err)
+		return
+	}
+
+	featureFile := path.Join(s.repoPath, name, name+".desc")
+	fd, err := os.Open(featureFile)
+	if err != nil {
+		gotrace.Error("Unable to read feature file '%s'. %s", featureFile, err)
+		return
+	}
+	defer fd.Close()
+
+	fileScan := bufio.NewScanner(fd)
+	for fileScan.Scan() {
+		line := strings.Trim(fileScan.Text(), " \n")
+		if gotrace.IsInfoMode() {
+			fmt.Printf("== >> %s ==\n", line)
+		}
+		s.checkElement(line, func(ftype, name, version string) {
+			switch ftype {
+			//case "groovy":
+			case "plugin":
+				s.checkPlugin(name, version)
+			default:
+				gotrace.Warning("feature type '%s' is currently not supported. Ignored.", ftype)
+				return
+			}
+
+		})
+	}
+	return true
 }
 
 func (s *pluginsStatus) checkPlugin(name, versionConstraints string) {

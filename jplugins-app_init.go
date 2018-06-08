@@ -31,17 +31,17 @@ func (a *jPluginsApp) doInit() {
 
 	lockData.importInstalled(a.installedPlugins)
 
-	if !a.readFeatures(lockData) {
+	if !a.readFeatures(*a.initCmd.featureRepoPath, *a.initCmd.sourceFile, *a.initCmd.featureRepoURL, lockData) {
 		return
 	}
 
-	if !a.writeLockFile(lockData) {
+	if !a.writeLockFile(*a.initCmd.lockFile, lockData) {
 		return
 	}
 
 }
 
-func (a *jPluginsApp) writeLockFile(lockData *pluginsStatus) (_ bool) {
+func (a *jPluginsApp) writeLockFile(lockFile string, lockData *pluginsStatus) (_ bool) {
 
 	pluginsList := make([]string, len(lockData.plugins))
 
@@ -53,7 +53,7 @@ func (a *jPluginsApp) writeLockFile(lockData *pluginsStatus) (_ bool) {
 
 	sort.Strings(pluginsList)
 
-	fd, err := os.OpenFile(lockFileName, os.O_CREATE|os.O_RDWR, 0644)
+	fd, err := os.OpenFile(lockFile, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		gotrace.Error("Unable to write '%s'. %s", lockFileName, err)
 		return
@@ -69,27 +69,41 @@ func (a *jPluginsApp) writeLockFile(lockData *pluginsStatus) (_ bool) {
 	return true
 }
 
-func (a *jPluginsApp) readFeatures(lockData *pluginsStatus) (_ bool) {
+func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, lockData *pluginsStatus) (_ bool) {
 	gotrace.Trace("Loading constraints...")
 	if gotrace.IsInfoMode() {
 		fmt.Printf("Reading %s\n--------\n", featureFileName)
 	}
-	fd, err := os.Open(featureFileName)
+	fd, err := os.Open(featureFile)
 	if err != nil {
 		gotrace.Error("Unable to read '%s'. %s", featureFileName, err)
 		return
 	}
 
+	if featurePath != defaultFeaturesRepoPath  {
+		lockData.setLocal()
+	}
+	lockData.setFeaturesPath(featurePath)
+	lockData.setFeaturesRepoURL(featureURL)
+
 	fileScan := bufio.NewScanner(fd)
 	for fileScan.Scan() {
 		line := strings.Trim(fileScan.Text(), " \n")
-		if line[0] == '#' {
-			continue
-		}
 		if gotrace.IsInfoMode() {
 			fmt.Printf("== %s ==\n", line)
 		}
-		lockData.checkElement(line)
+		lockData.checkElement(line, func (ftype, name, version string){
+			switch ftype {
+			case "feature":
+				lockData.checkFeature(name)
+			//case "groovy":
+			case "plugin":
+				lockData.checkPlugin(name, version)
+			default:
+				gotrace.Warning("feature type '%s' is currently not supported. Ignored.", ftype)
+				return
+			}
+		})
 	}
 
 	if gotrace.IsInfoMode() {
