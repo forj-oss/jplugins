@@ -43,10 +43,10 @@ func (a *jPluginsApp) doInit() {
 
 func (a *jPluginsApp) writeLockFile(lockData *pluginsStatus) (_ bool) {
 
-	pluginsList := make([]string, len(a.installedPlugins))
+	pluginsList := make([]string, len(lockData.plugins))
 
 	iCount := 0
-	for name := range a.installedPlugins {
+	for name := range lockData.plugins {
 		pluginsList[iCount] = name
 		iCount++
 	}
@@ -60,8 +60,9 @@ func (a *jPluginsApp) writeLockFile(lockData *pluginsStatus) (_ bool) {
 	}
 	defer fd.Close()
 
-	for name, plugin := range a.installedPlugins {
-		fmt.Fprintf(fd, "plugin:%s:%s\n", name, plugin.Version)
+	for _, name := range pluginsList {
+		plugin := lockData.plugins[name]
+		fmt.Fprintf(fd, "plugin:%s:%s\n", name, plugin.newVersion)
 	}
 
 	gotrace.Info("%s written\n", lockFileName)
