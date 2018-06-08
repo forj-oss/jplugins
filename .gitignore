@@ -13,4 +13,13 @@
 .be-*
 
 vendor/
+# go build
 jplugins
+# Visual studio conf
+.vscode/
+# Visual studio file generated
+debug
+#  Files used to test
+features.lst
+jplugins-preinstalled.lst
+jplugins.lock

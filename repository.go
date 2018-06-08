@@ -2,52 +2,57 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/forj-oss/forjj/utils" 
 	"net/url"
+
+	"github.com/forj-oss/forjj/utils"
 
 	"github.com/forj-oss/forjj-modules/trace"
 )
 
 type repository struct {
-	Plugins map[string]repositoryPlugin
-	loaded bool
-	url    string
-}
-
-type repositoryPlugin struct {
-	Dependencies []repositoryDependency
-	Name        string
-	Version     string
-	Title       string
-	Description string `json:"excerpt"`
+	Plugins            map[string]*repositoryPlugin
+	loaded             bool
+	repoURLs           []*url.URL
+	repoReplace        []string
+	repoSubPaths       []string
+	repoFile           string
+	repoPluginReplace  []string
+	repoPluginSubPaths []string
 }
 
 type repositoryDependency struct {
 	Name      string
 	Optionnal bool
 	Version   string
-
 }
 
-func NewRepository() *repository {
-	return new(repository)
+const (
+	JenkinsRepoURL     = "https://updates.jenkins.io"
+	JenkinsRepoVersion = "current"
+	JenkinsRepoFile    = "update-center.actual.json"
+	JenkinsPluginRepo  = "download/plugins"
+)
+
+func NewRepository() (ret *repository) {
+	ret = new(repository)
+	ret.repoSubPaths = []string{JenkinsRepoVersion}
+	ret.repoURLs = make([]*url.URL, 1)
+	ret.repoURLs[0], _ = url.Parse(JenkinsRepoURL)
+
+	ret.repoReplace = []string{""}
+	ret.repoFile = JenkinsRepoFile
+	ret.repoPluginReplace = []string{""}
+	ret.repoPluginSubPaths = []string{JenkinsPluginRepo}
+	return
 }
+
+// TODO: Be able to change default repository values
 
 // loadFrom read an URL file containing the Jenkins updates repository data as json.
-func (r *repository) loadFrom(urlString, version, file string) (_ bool) {
-
-	repoUrl, err := url.Parse(urlString)
-
+func (r *repository) loadFrom() (_ bool) {
+	repoData, err := utils.ReadDocumentFrom(r.repoURLs, r.repoReplace, r.repoSubPaths, r.repoFile, "")
 	if err != nil {
-		gotrace.Error("Unable to load '%s'. %s", err)
-		return
-	}
-
-	var repoData []byte
-
-	repoData, err = utils.ReadDocumentFrom([]*url.URL{repoUrl}, []string{version}, []string{""}, file)
-	if err != nil {
-		gotrace.Error("Unable to load '%s'. %s", repoUrl.String(), err)
+		gotrace.Error("Unable to load '%s'. %s", r.repoFile, err)
 		return
 	}
 
@@ -57,17 +62,25 @@ func (r *repository) loadFrom(urlString, version, file string) (_ bool) {
 		return
 	}
 
+	r.setDefaults()
+
 	return true
 }
 
 func (r *repository) compare(plugins plugins) (updates *pluginsStatus) {
-	updates = newPluginsStatus()
+	updates = newPluginsStatus(plugins, r)
 
-	updates.compare(plugins, r)
+	updates.compare()
 	return
 }
 
-func (r *repository) get(name string) (plugin repositoryPlugin, found bool) {
+func (r *repository) get(name string) (plugin *repositoryPlugin, found bool) {
 	plugin, found = r.Plugins[name]
-	return 
+	return
+}
+
+func (r *repository) setDefaults() {
+	for _, plugin := range r.Plugins {
+		plugin.ref = r
+	}
 }

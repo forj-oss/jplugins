@@ -1,5 +1,5 @@
 hash: aa5df739e6e1b00546667bfa2a7b829c5c1d411a8e865a3ad2f0d2580c9aeb39
-updated: 2018-06-07T18:33:44.327470041Z
+updated: 2018-06-08T11:24:24.409957971Z
 imports:
 - name: github.com/alecthomas/kingpin
   version: 947dcec5ba9c011838740e680966fd7087a71d0d
@@ -12,7 +12,7 @@ imports:
 - name: github.com/fatih/color
   version: 2d684516a8861da43017284349b7e303e809ac21
 - name: github.com/forj-oss/forjj
-  version: 4529a3633e42f2edd4117a70be28001779b7f1f2
+  version: 7819fbdd36dbebdf7dc2589e1a30bdb183568fb6
   subpackages:
   - utils
 - name: github.com/forj-oss/forjj-modules
@@ -28,7 +28,7 @@ imports:
 - name: github.com/mattn/go-isatty
   version: 6ca4dbf54d38eea1a992b3c722a76a5d1c4cb25c
 - name: golang.org/x/sys
-  version: 7c87d13f8e835d2fb3a70a2912c811ed0c1d241b
+  version: 9527bec2660bd847c050fda93a0f0c6dee0800bb
   subpackages:
   - unix
 - name: gopkg.in/yaml.v2

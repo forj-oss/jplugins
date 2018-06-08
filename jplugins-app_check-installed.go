@@ -4,16 +4,11 @@ import (
 	"fmt"
 )
 
-const (
-	JenkinsRepo        = "https://updates.jenkins.io"
-	JenkinsRepoVersion = "current"
-	JenkinsRepoFile    = "update-center.actual.json"
-)
 
 func (a *jPluginsApp) doCheckInstalled() {
 	a.repository = NewRepository()
 	repo := a.repository
-	if !repo.loadFrom(JenkinsRepo, JenkinsRepoVersion, JenkinsRepoFile) {
+	if !repo.loadFrom() {
 		return
 	}
 

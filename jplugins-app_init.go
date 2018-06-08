@@ -1,35 +1,47 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/forj-oss/forjj-modules/trace"
 )
 
 const (
-	lockFileName = "jplugins.lock"
+	lockFileName    = "jplugins.lock"
+	featureFileName = "jplugins.lst"
 )
 
 // doInit read `jplugins-preinstalled.lst` and `jplugins-features.yaml` to create a lock file
 func (a *jPluginsApp) doInit() {
 	a.repository = NewRepository()
 	repo := a.repository
-	if !repo.loadFrom(JenkinsRepo, JenkinsRepoVersion, JenkinsRepoFile) {
+	if !repo.loadFrom() {
 		return
 	}
 
 	if !a.readFromPreInstalled(*a.initCmd.preInstalledPath) {
 		return
 	}
-	if !a.writeLockFile() {
+
+	lockData := newPluginsStatus(a.installedPlugins, repo)
+
+	lockData.importInstalled(a.installedPlugins)
+
+	if !a.readFeatures(lockData) {
+		return
+	}
+
+	if !a.writeLockFile(lockData) {
 		return
 	}
 
 }
 
-func (a *jPluginsApp) writeLockFile() (_ bool) {
+func (a *jPluginsApp) writeLockFile(lockData *pluginsStatus) (_ bool) {
 
 	pluginsList := make([]string, len(a.installedPlugins))
 
@@ -53,5 +65,39 @@ func (a *jPluginsApp) writeLockFile() (_ bool) {
 	}
 
 	gotrace.Info("%s written\n", lockFileName)
+	return true
+}
+
+func (a *jPluginsApp) readFeatures(lockData *pluginsStatus) (_ bool) {
+	gotrace.Trace("Loading constraints...")
+	if gotrace.IsInfoMode() {
+		fmt.Printf("Reading %s\n--------\n", featureFileName)
+	}
+	fd, err := os.Open(featureFileName)
+	if err != nil {
+		gotrace.Error("Unable to read '%s'. %s", featureFileName, err)
+		return
+	}
+
+	fileScan := bufio.NewScanner(fd)
+	for fileScan.Scan() {
+		line := strings.Trim(fileScan.Text(), " \n")
+		if line[0] == '#' {
+			continue
+		}
+		if gotrace.IsInfoMode() {
+			fmt.Printf("== %s ==\n", line)
+		}
+		lockData.checkElement(line)
+	}
+
+	if gotrace.IsInfoMode() {
+		fmt.Println("--------")
+	}
+	gotrace.Trace("Identifying version from constraints...")
+	lockData.definePluginsVersion()
+
+	lockData.displayUpdates()
+
 	return true
 }
