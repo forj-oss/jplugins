@@ -101,7 +101,7 @@ func (sd *pluginsStatusDetails) checkMinimumVersionDep(version string, parentPlu
 	depVersion.Set(version)
 
 	if sd.newVersion.Get().LessThan(depVersion.Get()) {
-		sd.minDepName += fmt.Sprintf("%s requires %s:%s. ", parentPlugin.name, sd.name, version)
+		sd.minDepName += fmt.Sprintf("%s:%s requires %s:%s, ", parentPlugin.name, parentPlugin.newVersion, sd.name, version)
 	}
 }
 

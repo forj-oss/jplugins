@@ -359,9 +359,10 @@ func (s *pluginsStatus) checkMinDep() (_ bool) {
 		curVersion := plugin.newVersion.Get()
 		gotrace.Trace("%s: Testing selected version (%s) with dependencies constraints '%s'", name, curVersion, minVersion)
 		if curVersion.LessThan(minVersion) {
-			gotrace.Error("%s: Your settings has fixed %s as latest acceptable version. But the plugin (%s) dependency requires an higher version %s. "+
+			refplugin, _ := s.ref.get(name)
+			gotrace.Error("%s: Your settings has fixed %s as latest acceptable version. (latest is %s) But %sso, the dependencies requires an higher version %s. "+
 				"You have to fix it. Update %s to newer version or downgrade the dependency to lower version to accept %s:%s",
-				name, plugin.newVersion, plugin.minDepName, plugin.minDepVersion, name, name, plugin.newVersion)
+				name, plugin.newVersion, refplugin.Version, plugin.minDepName, plugin.minDepVersion, name, name, plugin.newVersion)
 			return
 		}
 	}
