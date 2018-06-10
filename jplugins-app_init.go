@@ -98,7 +98,7 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 				lockData.checkFeature(name)
 			//case "groovy":
 			case "plugin":
-				lockData.checkPlugin(name, version)
+				lockData.checkPlugin(name, version, nil)
 			default:
 				gotrace.Warning("feature type '%s' is currently not supported. Ignored.", ftype)
 				return
@@ -111,6 +111,10 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 	}
 	gotrace.Trace("Identifying version from constraints...")
 	lockData.definePluginsVersion()
+
+	if !lockData.checkMinDep() {
+		return
+	}
 
 	lockData.displayUpdates()
 

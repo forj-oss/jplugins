@@ -13,8 +13,6 @@ import (
 
 	"github.com/forj-oss/forjj/git"
 
-	goversion "github.com/hashicorp/go-version"
-
 	"github.com/forj-oss/forjj-modules/trace"
 )
 
@@ -101,16 +99,6 @@ func (s *pluginsStatus) compare() {
 	}
 }
 
-func (s *pluginsStatus) addConstraints(constraints goversion.Constraints, plugin *repositoryPlugin) (_ bool) {
-	pluginLock, found := s.plugins[plugin.Name]
-	if !found {
-		return
-	}
-
-	pluginLock.addConstraint(constraints)
-	return true
-}
-
 // chooseNewVersion change the default new version of a locked plugin
 func (s *pluginsStatus) chooseNewVersion(name, version string) (_ bool) {
 	pluginLock, found := s.plugins[name]
@@ -124,16 +112,17 @@ func (s *pluginsStatus) chooseNewVersion(name, version string) (_ bool) {
 
 // set do add/update a plugin version to the pluginsStatus structure
 // The version given is the current version use.
-func (s *pluginsStatus) add(version string, pluginRef *repositoryPlugin) (_ bool) {
-	_, found := s.plugins[pluginRef.Name]
+func (s *pluginsStatus) add(version string, pluginRef *repositoryPlugin) (ret *pluginsStatusDetails) {
+	ret, found := s.plugins[pluginRef.Name]
 
 	if found {
-		return
+		return nil
 	}
 
-	s.plugins[pluginRef.Name] = newPluginsStatusDetails().initFromRef(version, pluginRef)
+	ret = newPluginsStatusDetails().initFromRef(version, pluginRef)
+	s.plugins[pluginRef.Name] = ret
 
-	return true
+	return
 }
 
 func (s *pluginsStatus) obsolete(plugin *pluginManifest) {
@@ -175,14 +164,18 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 	iCountNew := 0
 	for _, title := range pluginsList {
 		plugin := pluginsDetails[title]
+		latest := ""
+		if plugin.latest {
+			latest = " (latest)"
+		}
 		if old := plugin.oldVersion.String(); old == plugin.newVersion.String() {
-			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-10s => No update\n", title+" ("+plugin.name+")", plugin.oldVersion)
+			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-10s => No update%s\n", title+" ("+plugin.name+")", plugin.oldVersion, latest)
 		} else {
 			iCountUpdated++
 			if old == "new" {
 				iCountNew++
 			}
-			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-10s => %s\n", title+" ("+plugin.name+")", plugin.oldVersion, plugin.newVersion)
+			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-10s => %s%s\n", title+" ("+plugin.name+")", plugin.oldVersion, plugin.newVersion, latest)
 		}
 
 	}
@@ -201,17 +194,13 @@ func (s *pluginsStatus) importInstalled(pluginsData plugins) {
 
 		pluginRef, found := s.ref.get(name)
 		if !found {
-			s.plugins[name] = newPluginsStatusDetails().initAsObsolete(plugin)
+			s.plugins[name] = newPluginsStatusDetails().
+				initAsObsolete(plugin)
 		} else {
-			constraints, err := goversion.NewConstraint(">=" + plugin.Version)
-
-			if err != nil {
-				gotrace.Warning("plugin '%s' has a malformed version. Ignored", name)
-			}
 			s.plugins[name] = newPluginsStatusDetails().
 				initFromRef(plugin.Version, pluginRef).
 				setAsPreInstalled().
-				addConstraint(constraints)
+				addConstraint(">=" + plugin.Version)
 		}
 	}
 }
@@ -279,7 +268,7 @@ func (s *pluginsStatus) checkFeature(name string) (_ bool) {
 			switch ftype {
 			//case "groovy":
 			case "plugin":
-				s.checkPlugin(name, version)
+				s.checkPlugin(name, version, nil)
 			default:
 				gotrace.Warning("feature type '%s' is currently not supported. Ignored.", ftype)
 				return
@@ -290,42 +279,39 @@ func (s *pluginsStatus) checkFeature(name string) (_ bool) {
 	return true
 }
 
-func (s *pluginsStatus) checkPlugin(name, versionConstraints string) {
-	var constraints goversion.Constraints
-
+func (s *pluginsStatus) checkPlugin(name, versionConstraints string, parentDependency *pluginsStatusDetails) {
 	refPlugin, found := s.ref.get(name)
 	if !found {
 		gotrace.Error("Plugin '%s' not found in the public repository. Ignored.", name)
 		return
 	}
 
-	if _, found := s.plugins[name]; !found {
-		if !s.add("new", refPlugin) {
+	plugin, found := s.plugins[name]
+	if !found {
+		if plugin = s.add("new", refPlugin); plugin == nil {
 			return
 		}
 		gotrace.Info("New plugin '%s' identified.", name)
 	}
 
 	if versionConstraints != "" {
-		if v, err := goversion.NewConstraint(versionConstraints); err == nil {
-			constraints = v
+		if parentDependency != nil {
+			plugin.setMinimumVersionDep(versionConstraints)
 		} else {
-			gotrace.Error("Version constraints are invalid. %s. Ignored", err)
-			return
+			plugin.addConstraint(versionConstraints)
 		}
-
-		s.addConstraints(constraints, refPlugin)
 	}
 
 	for _, dep := range refPlugin.Dependencies {
 		if dep.Optionnal {
 			continue
 		}
-		s.checkPlugin(dep.Name, ">="+dep.Version)
+		s.checkPlugin(dep.Name, dep.Version, plugin)
 	}
 
 }
 
+// definePluginsVersion will apply latest version of each plugin except if jplugins.lst or *.desc apply a constraints
 func (s *pluginsStatus) definePluginsVersion() (_ bool) {
 	for name, plugin := range s.plugins {
 		refPlugin, found := s.ref.get(name)
@@ -333,10 +319,13 @@ func (s *pluginsStatus) definePluginsVersion() (_ bool) {
 			gotrace.Error("Plugin '%s' not found in the public repository. Ignored.", name)
 			return
 		}
-		if foundVersion, err := refPlugin.DetermineVersion(plugin.rules); err != nil {
+		if foundVersion, latest, err := refPlugin.DetermineVersion(plugin.rules); err != nil {
 			gotrace.Error("Unable to find a version for plugin '%s' which respect all rules. %s. Please fix it", name, err)
 		} else {
 			plugin.setVersion(foundVersion.String())
+			if latest {
+				plugin.setIsLatest()
+			}
 			if plugin.oldVersion.String() != foundVersion.String() {
 				gotrace.Trace("%s : %s => %s\n", name, plugin.oldVersion, foundVersion)
 			} else {
@@ -346,5 +335,35 @@ func (s *pluginsStatus) definePluginsVersion() (_ bool) {
 		}
 	}
 
+	return true
+}
+
+func (s *pluginsStatus) checkMinDep() (_ bool) {
+	// Detect dependency request issue
+	for name, plugin := range s.plugins {
+		refplugin, _ := s.ref.get(name)
+
+		for _, dep := range refplugin.Dependencies {
+			depPlugin := s.plugins[dep.Name]
+			depPlugin.checkMinimumVersionDep(dep.Version, plugin)
+		}
+	}
+
+	// display dependency issue
+	for name, plugin := range s.plugins {
+		minVersion := plugin.minDepVersion.Get()
+		if minVersion == nil {
+			gotrace.Trace("No dependency identified for %s", name)
+			continue
+		}
+		curVersion := plugin.newVersion.Get()
+		gotrace.Trace("%s: Testing selected version (%s) with dependencies constraints '%s'", name, curVersion, minVersion)
+		if curVersion.LessThan(minVersion) {
+			gotrace.Error("%s: Your settings has fixed %s as latest acceptable version. But the plugin (%s) dependency requires an higher version %s. "+
+				"You have to fix it. Update %s to newer version or downgrade the dependency to lower version to accept %s:%s",
+				name, plugin.newVersion, plugin.minDepName, plugin.minDepVersion, name, name, plugin.newVersion)
+			return
+		}
+	}
 	return true
 }

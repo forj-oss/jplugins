@@ -24,6 +24,19 @@ Step: Read a features.yaml, and pre-installed list pre-install.lst (if exists) a
 4. read `jplugins.lst`, apply rules and write the lock file.
 
 Step: Read jplugins.lst, from pre-installed plugins and treat features to add groovy and plugin in the list
+Process objective:
+
+- Apply rules identified in `jplugins.lst` and `*.desc`, and identify latest version to use
+- Apply dependencies minimum version required on version identified. 
+    It can breaks when an indentified versin is not compatible with the rule. `jplugins` must report the module with version which requiring a newer version.
+    To fix this issue, the `jplugins.lst` can:
+    - accept a newer version of the plugin that break the dependency rules.
+    - or downgrade the dependency with an older version.
+
+What it won't do:
+
+- If the dependency requires an identified version newer, search for an older dependency which accept the identified version (extra step)
+
 1. read `jplugins.lst`, do git clone/update of install-inits, read each desc files requested, add plugins in the list, 
 2. list groovy files
 
@@ -33,8 +46,13 @@ Step: Read the lock file, download plugins/groovy files and install them in Jenk
 2. download plugins is series and install them in Jenkins home (must exist)
 3. git clone install-inits and copy files.
 
-Extra steps:
-step:
+# Extra steps:
+step: If the dependency requires an identified version newer, search for an older dependency which accept the identified version.
+
+1. enhance the determineVersion with this logic
+
+step: Fix feature version on commit ID
+
 1. take feature version as commit ID.
 
 Step: Parallelize plugins download to accelerate download (POC)

@@ -56,35 +56,48 @@ func (p *repositoryPlugin) loadPluginVersionList() []versionStruct {
 	return versionHistory
 }
 
-func (p *repositoryPlugin) DetermineVersion(versionConstraints []goversion.Constraints) (version versionStruct, err error) {
+func (p *repositoryPlugin) DetermineVersion(versionConstraints map[string]goversion.Constraints) (version versionStruct, latest bool, err error) {
 	// Search from version history
 	version = versionStruct{}
 	version.Set(p.Version)
 	var history []versionStruct
+	gotrace.Trace("Determining version for '%s'. %d constraints to verify", p.Name, len(versionConstraints))
 	for _, constraints := range versionConstraints {
+		latest = true
+		gotrace.Trace("Constraint to check: '%s'", constraints)
 		if history == nil {
 			// Check first from central repository data
 			if constraints.Check(version.Get()) {
+				gotrace.Trace("0: %s - %s : OK", version.Get(), constraints)
 				continue
 			}
+			gotrace.Trace("0: %s - %s : NO", version.Get(), constraints)
+			gotrace.Trace("Getting more versions from history...")
 			// Load the history as we need to go further in the list
 			history = p.loadPluginVersionList()
+			history = history[1:]
 		}
 
+		latest = false
 		// The history was loaded... So, check from each elements loaded.
 		if len(history) == 0 {
 			version = versionStruct{}
-			err = fmt.Errorf("%s: No available versions match rule '%s'", p.Name, versionConstraints)
+			err = fmt.Errorf("%%s: No available versions match rule '%s'", p.Name, versionConstraints)
 			return
 		}
 		iCount := 1
 		for _, version = range history {
 			if !constraints.Check(version.Get()) {
+				gotrace.Trace("%d: %s - %s : NO", iCount, version.Get(), constraints)
 				iCount++
 				continue
 			}
-			history = history[iCount:]
+			gotrace.Trace("%d: %s - %s : OK", iCount, version.Get(), constraints)
+			history = history[iCount-1:]
 			break
+		}
+		if !constraints.Check(version.Get()) {
+			gotrace.Error("%s: Failed to find a version that respect %s. You can to review your feature.lst and dependencies")
 		}
 	}
 	return

@@ -1,22 +1,27 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/forj-oss/forjj-modules/trace"
 	goversion "github.com/hashicorp/go-version"
 )
 
 type pluginsStatusDetails struct {
-	name         string
-	title        string
-	oldVersion   versionStruct
-	newVersion   versionStruct
-	rules        []goversion.Constraints
-	preInstalled bool
+	name          string
+	title         string
+	oldVersion    versionStruct
+	newVersion    versionStruct
+	minDepVersion versionStruct
+	minDepName    string
+	latest        bool
+	rules         map[string]goversion.Constraints
+	preInstalled  bool
 }
 
 func newPluginsStatusDetails() (ret *pluginsStatusDetails) {
 	ret = new(pluginsStatusDetails)
-	ret.rules = make([]goversion.Constraints, 0, 5)
+	ret.rules = make(map[string]goversion.Constraints)
 	return
 }
 
@@ -76,11 +81,42 @@ func (sd *pluginsStatusDetails) setVersion(version string) *pluginsStatusDetails
 	return sd
 }
 
-func (sd *pluginsStatusDetails) addConstraint(constraints goversion.Constraints) *pluginsStatusDetails {
+func (sd *pluginsStatusDetails) setMinimumVersionDep(version string) {
+	if sd == nil {
+		return
+	}
+	depVersion := versionStruct{}
+	depVersion.Set(version)
+
+	if minVersion := sd.minDepVersion.Get(); minVersion == nil || minVersion.LessThan(depVersion.Get()) {
+		sd.minDepVersion = depVersion
+	}
+}
+
+func (sd *pluginsStatusDetails) checkMinimumVersionDep(version string, parentPlugin *pluginsStatusDetails) {
+	if sd == nil {
+		return
+	}
+	depVersion := versionStruct{}
+	depVersion.Set(version)
+
+	if sd.newVersion.Get().LessThan(depVersion.Get()) {
+		sd.minDepName += fmt.Sprintf("%s requires %s:%s. ", parentPlugin.name, sd.name, version)
+	}
+}
+
+func (sd *pluginsStatusDetails) addConstraint(constraintsGiven string) *pluginsStatusDetails {
 	if sd == nil {
 		return nil
 	}
-	sd.rules = append(sd.rules, constraints)
+
+	constraints, err := goversion.NewConstraint(constraintsGiven)
+	if err != nil {
+		gotrace.Error("Version constraints are invalid. %s. Ignored", err)
+		return nil
+	}
+
+	sd.rules[constraints.String()] = constraints
 	return sd
 }
 
@@ -105,4 +141,12 @@ func (sd *pluginsStatusDetails) initAsObsolete(plugin *pluginManifest) *pluginsS
 	sd.title = plugin.LongName
 
 	return sd
+}
+
+func (sd *pluginsStatusDetails) setIsLatest() {
+	if sd == nil {
+		return
+	}
+
+	sd.latest = true
 }
