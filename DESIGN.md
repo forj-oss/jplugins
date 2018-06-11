@@ -50,17 +50,26 @@ Step 5: Read the lock file, download plugins/groovy files and install them in Je
 2. download plugins is series and install them in Jenkins home (must exist)
 3. git clone install-inits and copy files.
 
+Step 6: `jplugins` read lock file and update to latest version and write new version in Lock file
+
+1. read `jplugins.lock` and run updates and display result
+2. Test `jplugins.lock` existence calling init command to suggest running update instead.
+
 ## Extra steps
 
-step 6: If the dependency requires an identified version newer, search for an older dependency which accept the identified version.
+step 7: If the dependency requires an identified version newer, search for an older dependency which accept the identified version.
 
 1. enhance the determineVersion with this logic
 
-step 7: Fix feature version on commit ID
+step 8: Fix feature version on commit ID
 
 1. take feature version as commit ID.
 
-Step 8: Parallelize plugins download to accelerate download (POC)
+Step 9: Parallelize plugins download to accelerate download (POC)
 
 1. Parallelize the download with GO channel
 
+Step 10: Be able to update partially the Lock file
+
+1. Display update proposal from lock files
+2. choose which one to update
