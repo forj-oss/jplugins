@@ -71,15 +71,16 @@ Some of needs to cover:
 
 ## Development phases
 
-Identified in 4 steps to answer needs described above.
+Identified in 5 steps to answer needs described above.
 
-We are in step 4 - Lock version for docker build.
+We are in step 5 - Read Lock file, download/copy to Jenkins home directories.
 
 You can contribute to the project. Follow the usual Issues/Pull Request mechanism
 
 ## Build and develop
 
 Requirements:
+
 - docker 1.9 or higher
 
 To build the project, do the following:

@@ -1,28 +1,74 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"forjj/utils"
+	"net/url"
+	"os"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
 
-	goversion "github.com/hashicorp/go-version"
+	"github.com/forj-oss/forjj/git"
 
 	"github.com/forj-oss/forjj-modules/trace"
 )
 
 type pluginsStatus struct {
 	plugins   map[string]*pluginsStatusDetails
+	groovies  map[string]*groovyStatusDetails
 	installed plugins
 	ref       *repository
+	repoPath  string
+	repoURL   []*url.URL
+	useLocal  bool
 }
 
 func newPluginsStatus(installed plugins, ref *repository) (pluginsCompared *pluginsStatus) {
 	pluginsCompared = new(pluginsStatus)
 	pluginsCompared.plugins = make(map[string]*pluginsStatusDetails)
+	pluginsCompared.groovies = make(map[string]*groovyStatusDetails)
 	pluginsCompared.installed = installed
 	pluginsCompared.ref = ref
+	pluginsCompared.repoURL = make([]*url.URL, 0, 3)
 	return
+}
+
+// setLocal set the useLocal to true
+// When set to true, jplugin do not clone a remote repo URL to store on cache
+func (s *pluginsStatus) setLocal() {
+	if s == nil {
+		return
+	}
+	s.useLocal = true
+}
+
+func (s *pluginsStatus) setFeaturesRepoURL(repoURL string) error {
+	if s == nil {
+		return nil
+	}
+
+	if repoURLObject, err := url.Parse(repoURL); err != nil {
+		return fmt.Errorf("Invalid feature repository URL. %s", repoURL)
+	} else {
+		s.repoURL = append(s.repoURL, repoURLObject)
+	}
+	return nil
+}
+
+func (s *pluginsStatus) setFeaturesPath(repoPath string) error {
+	if s == nil {
+		return nil
+	}
+
+	if p, err := utils.Abs(repoPath); err != nil {
+		return fmt.Errorf("Invalid feature repository path. %s", repoPath)
+	} else {
+		s.repoPath = p
+	}
+	return nil
 }
 
 func (s *pluginsStatus) compare() {
@@ -35,7 +81,7 @@ func (s *pluginsStatus) compare() {
 			continue
 		}
 		if plugin.Version != refPlugin.Version {
-			s.add(plugin.Version, refPlugin)
+			s.addPlugin(plugin.Version, refPlugin)
 		}
 
 		for _, dep := range refPlugin.Dependencies {
@@ -45,7 +91,7 @@ func (s *pluginsStatus) compare() {
 			if _, found = installed[dep.Name]; !found {
 
 				if p, found := ref.get(dep.Name); found {
-					s.add("new", p)
+					s.addPlugin("new", p)
 				} else {
 					gotrace.Trace("Internal repo error: From '%s', dependency '%s' has not been found.", name, dep.Name)
 					continue
@@ -53,16 +99,6 @@ func (s *pluginsStatus) compare() {
 			}
 		}
 	}
-}
-
-func (s *pluginsStatus) addConstraints(constraints goversion.Constraints, plugin *repositoryPlugin) (_ bool) {
-	pluginLock, found := s.plugins[plugin.Name]
-	if !found {
-		return
-	}
-
-	pluginLock.addConstraint(constraints)
-	return true
 }
 
 // chooseNewVersion change the default new version of a locked plugin
@@ -78,16 +114,27 @@ func (s *pluginsStatus) chooseNewVersion(name, version string) (_ bool) {
 
 // set do add/update a plugin version to the pluginsStatus structure
 // The version given is the current version use.
-func (s *pluginsStatus) add(version string, pluginRef *repositoryPlugin) (_ bool) {
-	_, found := s.plugins[pluginRef.Name]
+func (s *pluginsStatus) addPlugin(version string, pluginRef *repositoryPlugin) (ret *pluginsStatusDetails) {
+	ret, found := s.plugins[pluginRef.Name]
 
 	if found {
-		return
+		return nil
 	}
 
-	s.plugins[pluginRef.Name] = newPluginsStatusDetails().initFromRef(version, pluginRef)
+	ret = newPluginsStatusDetails().initFromRef(version, pluginRef)
+	s.plugins[pluginRef.Name] = ret
 
-	return true
+	return
+}
+
+func (s *pluginsStatus) addGroovy(name string, sourcePath string) (ret *groovyStatusDetails) {
+	groovy, found := s.groovies[name]
+
+	if !found {
+		groovy = newGroovyStatusDetails(name, sourcePath)
+	}
+	groovy.computeM5Sum(!found)
+	return groovy
 }
 
 func (s *pluginsStatus) obsolete(plugin *pluginManifest) {
@@ -105,8 +152,8 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 		return
 	}
 
-	if len(s.plugins) == 0 {
-		fmt.Print("No updates detected.")
+	if len(s.plugins) == 0 && len(s.groovies) == 0 {
+		fmt.Print("No plugins or groovies updates detected.")
 		return true
 	}
 
@@ -125,23 +172,62 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 
 	sort.Strings(pluginsList)
 
+	fmt.Print("\nPlugins:\n==========\n")
+
 	iCountUpdated := 0
 	iCountNew := 0
 	for _, title := range pluginsList {
 		plugin := pluginsDetails[title]
+		latest := ""
+		if plugin.latest {
+			latest = " (latest)"
+		}
 		if old := plugin.oldVersion.String(); old == plugin.newVersion.String() {
-			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-10s => No update\n", title+" ("+plugin.name+")", plugin.oldVersion)
+			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-10s => No update%s\n", title+" ("+plugin.name+")", plugin.oldVersion, latest)
 		} else {
 			iCountUpdated++
 			if old == "new" {
 				iCountNew++
 			}
-			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-10s => %s\n", title+" ("+plugin.name+")", plugin.oldVersion, plugin.newVersion)
+			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-10s => %s%s\n", title+" ("+plugin.name+")", plugin.oldVersion, plugin.newVersion, latest)
+		}
+
+	}
+
+	pluginsList = make([]string, len(s.groovies))
+	iCountGroovy := 0
+	iMaxTitle = 0
+	for _, groovy := range s.groovies {
+		pluginsList[iCountGroovy] = groovy.name
+		if val := len(groovy.name); val > iMaxTitle {
+			iMaxTitle = val
+		}
+		iCountGroovy++
+	}
+
+	sort.Strings(pluginsList)
+
+	fmt.Print("\nGroovies:\n==========\n")
+
+	iCountGroovyUpdated := 0
+	iCountGroovyNew := 0
+	for _, name := range pluginsList {
+		groovy := s.groovies[name]
+		if old := groovy.oldMd5; old == groovy.newMd5 {
+			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-30s => No update\n", name, groovy.newMd5)
+		} else {
+			iCountGroovyUpdated++
+			if old == "" {
+				iCountGroovyNew++
+				old = "new"
+			}
+			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-30s => %s\n", name, old, groovy.newMd5)
 		}
 
 	}
 
 	fmt.Printf("\nFound %d/%d plugin(s) updates available. %d are new.\n", iCountUpdated, iCount, iCountNew)
+	fmt.Printf("Found %d/%d groovy(ies) updates available. %d are new.\n", iCountGroovyUpdated, iCountGroovy, iCountGroovyNew)
 
 	return true
 }
@@ -155,29 +241,29 @@ func (s *pluginsStatus) importInstalled(pluginsData plugins) {
 
 		pluginRef, found := s.ref.get(name)
 		if !found {
-			s.plugins[name] = newPluginsStatusDetails().initAsObsolete(plugin)
+			s.plugins[name] = newPluginsStatusDetails().
+				initAsObsolete(plugin)
 		} else {
-			constraints, err := goversion.NewConstraint(">=" + plugin.Version)
-
-			if err != nil {
-				gotrace.Warning("plugin '%s' has a malformed version. Ignored", name)
-			}
 			s.plugins[name] = newPluginsStatusDetails().
 				initFromRef(plugin.Version, pluginRef).
 				setAsPreInstalled().
-				addConstraint(constraints)
+				addConstraint(">=" + plugin.Version)
 		}
 	}
 }
 
-func (s *pluginsStatus) checkElement(line string) {
+func (s *pluginsStatus) checkElement(line string, split func(string, string, string)) {
 	var ftype, fname string
 	var fversion string
+
+	if line == "" || line[0] == '#' {
+		return
+	}
 
 	fields := strings.Split(line, ":")
 	switch len(fields) {
 	case 1:
-		gotrace.Warning("Line %d: Line format is incorrect. It should be <'plugin'|'feature'>:<plugin Name>[:<version>]")
+		gotrace.Warning("Line %s: Line format is incorrect. It should be <'plugin'|'feature'>:<plugin Name>[:<version>]", line)
 		return
 	case 2:
 		ftype = strings.Trim(fields[0], " ")
@@ -188,58 +274,105 @@ func (s *pluginsStatus) checkElement(line string) {
 		fversion = strings.Trim(fields[2], " ")
 	}
 
-	switch ftype {
-	case "feature":
-		s.checkFeature(fname)
-	//case "groovy":
-	case "plugin":
-		s.checkPlugin(fname, fversion)
-	default:
-		gotrace.Warning("feature type '%s' is currently not supported. Ignored.", ftype)
+	split(ftype, fname, fversion)
+
+}
+
+func (s *pluginsStatus) checkFeature(name string) (_ bool) {
+	if s == nil {
 		return
+	}
+	if !s.useLocal {
+		gotrace.Error("Git clone of repository not currently implemented.")
+		return
+	}
+
+	if err := git.RunInPath(s.repoPath, func() error {
+		if git.Do("rev-parse", "--git-dir") != 0 {
+			return fmt.Errorf("Not a valid GIT repository")
+		}
+		return nil
+	}); err != nil {
+		gotrace.Error("Issue with '%s', %s", s.repoPath, err)
+		return
+	}
+
+	featureFile := path.Join(s.repoPath, name, name+".desc")
+	fd, err := os.Open(featureFile)
+	if err != nil {
+		gotrace.Error("Unable to read feature file '%s'. %s", featureFile, err)
+		return
+	}
+	defer fd.Close()
+
+	fileScan := bufio.NewScanner(fd)
+	for fileScan.Scan() {
+		line := strings.Trim(fileScan.Text(), " \n")
+		if gotrace.IsInfoMode() {
+			fmt.Printf("== >> %s ==\n", line)
+		}
+		s.checkElement(line, func(ftype, fname, version string) {
+			switch ftype {
+			case "groovy":
+				groovyPath := path.Join(s.repoPath, name) // use feature name
+				s.checkGroovy(fname, groovyPath)
+			case "plugin":
+				s.checkPlugin(fname, version, nil)
+			default:
+				gotrace.Warning("feature type '%s' is currently not supported. Ignored.", ftype)
+				return
+			}
+
+		})
+	}
+	return true
+}
+
+func (s *pluginsStatus) checkGroovy(name, groovyPath string) {
+
+	groovy, found := s.groovies[name]
+	if !found {
+		if groovy = s.addGroovy(name, groovyPath); groovy == nil {
+			return
+		}
+		gotrace.Info("New groovy '%s' identified.", name)
+		s.groovies[name] = groovy
 	}
 }
 
-func (s *pluginsStatus) checkFeature(name string) {
-
-}
-
-func (s *pluginsStatus) checkPlugin(name, versionConstraints string) {
-	var constraints goversion.Constraints
-
+func (s *pluginsStatus) checkPlugin(name, versionConstraints string, parentDependency *pluginsStatusDetails) {
 	refPlugin, found := s.ref.get(name)
 	if !found {
 		gotrace.Error("Plugin '%s' not found in the public repository. Ignored.", name)
 		return
 	}
 
-	if _, found := s.plugins[name]; !found {
-		if !s.add("new", refPlugin) {
+	plugin, found := s.plugins[name]
+	if !found {
+		if plugin = s.addPlugin("new", refPlugin); plugin == nil {
 			return
 		}
 		gotrace.Info("New plugin '%s' identified.", name)
 	}
 
 	if versionConstraints != "" {
-		if v, err := goversion.NewConstraint(versionConstraints); err == nil {
-			constraints = v
+		if parentDependency != nil {
+			plugin.setMinimumVersionDep(versionConstraints)
 		} else {
-			gotrace.Error("Version constraints are invalid. %s. Ignored", err)
-			return
+			plugin.addConstraint(versionConstraints)
 		}
-
-		s.addConstraints(constraints, refPlugin)
 	}
 
 	for _, dep := range refPlugin.Dependencies {
 		if dep.Optionnal {
 			continue
 		}
-		s.checkPlugin(dep.Name, ">="+dep.Version)
+		s.checkPlugin(dep.Name, dep.Version, plugin)
 	}
 
 }
 
+// definePluginsVersion will apply latest version of each plugin except if jplugins.lst or *.desc apply a constraints
 func (s *pluginsStatus) definePluginsVersion() (_ bool) {
 	for name, plugin := range s.plugins {
 		refPlugin, found := s.ref.get(name)
@@ -247,10 +380,13 @@ func (s *pluginsStatus) definePluginsVersion() (_ bool) {
 			gotrace.Error("Plugin '%s' not found in the public repository. Ignored.", name)
 			return
 		}
-		if foundVersion, err := refPlugin.DetermineVersion(plugin.rules); err != nil {
+		if foundVersion, latest, err := refPlugin.DetermineVersion(plugin.rules); err != nil {
 			gotrace.Error("Unable to find a version for plugin '%s' which respect all rules. %s. Please fix it", name, err)
 		} else {
 			plugin.setVersion(foundVersion.String())
+			if latest {
+				plugin.setIsLatest()
+			}
 			if plugin.oldVersion.String() != foundVersion.String() {
 				gotrace.Trace("%s : %s => %s\n", name, plugin.oldVersion, foundVersion)
 			} else {
@@ -260,5 +396,36 @@ func (s *pluginsStatus) definePluginsVersion() (_ bool) {
 		}
 	}
 
+	return true
+}
+
+func (s *pluginsStatus) checkMinDep() (_ bool) {
+	// Detect dependency request issue
+	for name, plugin := range s.plugins {
+		refplugin, _ := s.ref.get(name)
+
+		for _, dep := range refplugin.Dependencies {
+			depPlugin := s.plugins[dep.Name]
+			depPlugin.checkMinimumVersionDep(dep.Version, plugin)
+		}
+	}
+
+	// display dependency issue
+	for name, plugin := range s.plugins {
+		minVersion := plugin.minDepVersion.Get()
+		if minVersion == nil {
+			gotrace.Trace("No dependency identified for %s", name)
+			continue
+		}
+		curVersion := plugin.newVersion.Get()
+		gotrace.Trace("%s: Testing selected version (%s) with dependencies constraints '%s'", name, curVersion, minVersion)
+		if curVersion.LessThan(minVersion) {
+			refplugin, _ := s.ref.get(name)
+			gotrace.Error("%s: Your settings has fixed %s as latest acceptable version. (latest is %s) But %sso, the dependencies requires an higher version %s. "+
+				"You have to fix it. Update %s to newer version or downgrade the dependency to lower version to accept %s:%s",
+				name, plugin.newVersion, refplugin.Version, plugin.minDepName, plugin.minDepVersion, name, name, plugin.newVersion)
+			return
+		}
+	}
 	return true
 }
