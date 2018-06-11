@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"crypto/md5"
+	"encoding/base64"
 	"io"
 	"os"
 	"path"
@@ -25,10 +26,10 @@ func newGroovyStatusDetails(name, sourcePath string) (ret *groovyStatusDetails) 
 }
 
 func (gsd *groovyStatusDetails) computeM5Sum(bNew bool) (_ bool) {
-	descFile := path.Join(gsd.sourcePath, gsd.name, gsd.name+".desc")
-	fd, err := os.Open(descFile)
+	groovyFile := path.Join(gsd.sourcePath, gsd.name+".groovy")
+	fd, err := os.Open(groovyFile)
 	if err != nil {
-		gotrace.Error("Unable to read ")
+		gotrace.Error("Unable to read '%s'. %s", groovyFile, err)
 		return
 	}
 	defer fd.Close()
@@ -41,11 +42,12 @@ func (gsd *groovyStatusDetails) computeM5Sum(bNew bool) (_ bool) {
 		gotrace.Error("Unable to generate md5sum data. %s", err)
 		return
 	}
+	md5Data := base64.StdEncoding.EncodeToString(hash.Sum(nil))
 
 	if bNew {
-		gsd.newMd5 = string(hash.Sum(nil))
+		gsd.newMd5 = md5Data
 	} else {
-		gsd.oldMd5 = string(hash.Sum(nil))
+		gsd.oldMd5 = md5Data
 	}
 
 	return true

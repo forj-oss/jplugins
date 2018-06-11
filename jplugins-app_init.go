@@ -53,7 +53,7 @@ func (a *jPluginsApp) writeLockFile(lockFile string, lockData *pluginsStatus) (_
 
 	sort.Strings(pluginsList)
 
-	fd, err := os.OpenFile(lockFile, os.O_CREATE|os.O_RDWR, 0644)
+	fd, err := os.OpenFile(lockFile, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
 	if err != nil {
 		gotrace.Error("Unable to write '%s'. %s", lockFileName, err)
 		return
@@ -63,6 +63,21 @@ func (a *jPluginsApp) writeLockFile(lockFile string, lockData *pluginsStatus) (_
 	for _, name := range pluginsList {
 		plugin := lockData.plugins[name]
 		fmt.Fprintf(fd, "plugin:%s:%s\n", name, plugin.newVersion)
+	}
+
+	pluginsList = make([]string, len(lockData.groovies))
+
+	iCount = 0
+	for name := range lockData.groovies {
+		pluginsList[iCount] = name
+		iCount++
+	}
+
+	sort.Strings(pluginsList)
+
+	for _, name := range pluginsList {
+		groovy := lockData.groovies[name]
+		fmt.Fprintf(fd, "groovy:%s:%s\n", name, groovy.newMd5)
 	}
 
 	gotrace.Info("%s written\n", lockFileName)
@@ -80,7 +95,7 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 		return
 	}
 
-	if featurePath != defaultFeaturesRepoPath  {
+	if featurePath != defaultFeaturesRepoPath {
 		lockData.setLocal()
 	}
 	lockData.setFeaturesPath(featurePath)
@@ -92,7 +107,7 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 		if gotrace.IsInfoMode() {
 			fmt.Printf("== %s ==\n", line)
 		}
-		lockData.checkElement(line, func (ftype, name, version string){
+		lockData.checkElement(line, func(ftype, name, version string) {
 			switch ftype {
 			case "feature":
 				lockData.checkFeature(name)

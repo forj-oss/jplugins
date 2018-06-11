@@ -152,8 +152,8 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 		return
 	}
 
-	if len(s.plugins) == 0 {
-		fmt.Print("No updates detected.")
+	if len(s.plugins) == 0 && len(s.groovies) == 0 {
+		fmt.Print("No plugins or groovies updates detected.")
 		return true
 	}
 
@@ -171,6 +171,8 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 	}
 
 	sort.Strings(pluginsList)
+
+	fmt.Print("\nPlugins:\n==========\n")
 
 	iCountUpdated := 0
 	iCountNew := 0
@@ -192,7 +194,40 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 
 	}
 
+	pluginsList = make([]string, len(s.groovies))
+	iCountGroovy := 0
+	iMaxTitle = 0
+	for _, groovy := range s.groovies {
+		pluginsList[iCountGroovy] = groovy.name
+		if val := len(groovy.name); val > iMaxTitle {
+			iMaxTitle = val
+		}
+		iCountGroovy++
+	}
+
+	sort.Strings(pluginsList)
+
+	fmt.Print("\nGroovies:\n==========\n")
+
+	iCountGroovyUpdated := 0
+	iCountGroovyNew := 0
+	for _, name := range pluginsList {
+		groovy := s.groovies[name]
+		if old := groovy.oldMd5; old == groovy.newMd5 {
+			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-30s => No update\n", name, groovy.newMd5)
+		} else {
+			iCountGroovyUpdated++
+			if old == "" {
+				iCountGroovyNew++
+				old = "new"
+			}
+			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-30s => %s\n", name, old, groovy.newMd5)
+		}
+
+	}
+
 	fmt.Printf("\nFound %d/%d plugin(s) updates available. %d are new.\n", iCountUpdated, iCount, iCountNew)
+	fmt.Printf("Found %d/%d groovy(ies) updates available. %d are new.\n", iCountGroovyUpdated, iCountGroovy, iCountGroovyNew)
 
 	return true
 }
@@ -276,12 +311,13 @@ func (s *pluginsStatus) checkFeature(name string) (_ bool) {
 		if gotrace.IsInfoMode() {
 			fmt.Printf("== >> %s ==\n", line)
 		}
-		s.checkElement(line, func(ftype, name, version string) {
+		s.checkElement(line, func(ftype, fname, version string) {
 			switch ftype {
 			case "groovy":
-				s.checkGroovy(name)
+				groovyPath := path.Join(s.repoPath, name) // use feature name
+				s.checkGroovy(fname, groovyPath)
 			case "plugin":
-				s.checkPlugin(name, version, nil)
+				s.checkPlugin(fname, version, nil)
 			default:
 				gotrace.Warning("feature type '%s' is currently not supported. Ignored.", ftype)
 				return
@@ -292,14 +328,15 @@ func (s *pluginsStatus) checkFeature(name string) (_ bool) {
 	return true
 }
 
-func (s *pluginsStatus) checkGroovy(name string) {
+func (s *pluginsStatus) checkGroovy(name, groovyPath string) {
 
 	groovy, found := s.groovies[name]
 	if !found {
-		if groovy = s.addGroovy(name, s.repoPath); groovy == nil {
+		if groovy = s.addGroovy(name, groovyPath); groovy == nil {
 			return
 		}
 		gotrace.Info("New groovy '%s' identified.", name)
+		s.groovies[name] = groovy
 	}
 }
 
