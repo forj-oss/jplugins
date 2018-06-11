@@ -80,6 +80,7 @@ You can contribute to the project. Follow the usual Issues/Pull Request mechanis
 ## Build and develop
 
 Requirements:
+
 - docker 1.9 or higher
 
 To build the project, do the following:

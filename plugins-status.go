@@ -18,6 +18,7 @@ import (
 
 type pluginsStatus struct {
 	plugins   map[string]*pluginsStatusDetails
+	groovies  map[string]*groovyStatusDetails
 	installed plugins
 	ref       *repository
 	repoPath  string
@@ -28,6 +29,7 @@ type pluginsStatus struct {
 func newPluginsStatus(installed plugins, ref *repository) (pluginsCompared *pluginsStatus) {
 	pluginsCompared = new(pluginsStatus)
 	pluginsCompared.plugins = make(map[string]*pluginsStatusDetails)
+	pluginsCompared.groovies = make(map[string]*groovyStatusDetails)
 	pluginsCompared.installed = installed
 	pluginsCompared.ref = ref
 	pluginsCompared.repoURL = make([]*url.URL, 0, 3)
@@ -79,7 +81,7 @@ func (s *pluginsStatus) compare() {
 			continue
 		}
 		if plugin.Version != refPlugin.Version {
-			s.add(plugin.Version, refPlugin)
+			s.addPlugin(plugin.Version, refPlugin)
 		}
 
 		for _, dep := range refPlugin.Dependencies {
@@ -89,7 +91,7 @@ func (s *pluginsStatus) compare() {
 			if _, found = installed[dep.Name]; !found {
 
 				if p, found := ref.get(dep.Name); found {
-					s.add("new", p)
+					s.addPlugin("new", p)
 				} else {
 					gotrace.Trace("Internal repo error: From '%s', dependency '%s' has not been found.", name, dep.Name)
 					continue
@@ -112,7 +114,7 @@ func (s *pluginsStatus) chooseNewVersion(name, version string) (_ bool) {
 
 // set do add/update a plugin version to the pluginsStatus structure
 // The version given is the current version use.
-func (s *pluginsStatus) add(version string, pluginRef *repositoryPlugin) (ret *pluginsStatusDetails) {
+func (s *pluginsStatus) addPlugin(version string, pluginRef *repositoryPlugin) (ret *pluginsStatusDetails) {
 	ret, found := s.plugins[pluginRef.Name]
 
 	if found {
@@ -123,6 +125,16 @@ func (s *pluginsStatus) add(version string, pluginRef *repositoryPlugin) (ret *p
 	s.plugins[pluginRef.Name] = ret
 
 	return
+}
+
+func (s *pluginsStatus) addGroovy(name string, sourcePath string) (ret *groovyStatusDetails) {
+	groovy, found := s.groovies[name]
+
+	if !found {
+		groovy = newGroovyStatusDetails(name, sourcePath)
+	}
+	groovy.computeM5Sum(!found)
+	return groovy
 }
 
 func (s *pluginsStatus) obsolete(plugin *pluginManifest) {
@@ -242,7 +254,7 @@ func (s *pluginsStatus) checkFeature(name string) (_ bool) {
 
 	if err := git.RunInPath(s.repoPath, func() error {
 		if git.Do("rev-parse", "--git-dir") != 0 {
-			return fmt.Errorf("Not a valid GIT repository.")
+			return fmt.Errorf("Not a valid GIT repository")
 		}
 		return nil
 	}); err != nil {
@@ -266,7 +278,8 @@ func (s *pluginsStatus) checkFeature(name string) (_ bool) {
 		}
 		s.checkElement(line, func(ftype, name, version string) {
 			switch ftype {
-			//case "groovy":
+			case "groovy":
+				s.checkGroovy(name)
 			case "plugin":
 				s.checkPlugin(name, version, nil)
 			default:
@@ -279,6 +292,17 @@ func (s *pluginsStatus) checkFeature(name string) (_ bool) {
 	return true
 }
 
+func (s *pluginsStatus) checkGroovy(name string) {
+
+	groovy, found := s.groovies[name]
+	if !found {
+		if groovy = s.addGroovy(name, s.repoPath); groovy == nil {
+			return
+		}
+		gotrace.Info("New groovy '%s' identified.", name)
+	}
+}
+
 func (s *pluginsStatus) checkPlugin(name, versionConstraints string, parentDependency *pluginsStatusDetails) {
 	refPlugin, found := s.ref.get(name)
 	if !found {
@@ -288,7 +312,7 @@ func (s *pluginsStatus) checkPlugin(name, versionConstraints string, parentDepen
 
 	plugin, found := s.plugins[name]
 	if !found {
-		if plugin = s.add("new", refPlugin); plugin == nil {
+		if plugin = s.addPlugin("new", refPlugin); plugin == nil {
 			return
 		}
 		gotrace.Info("New plugin '%s' identified.", name)
