@@ -26,12 +26,19 @@ type jPluginsApp struct {
 		sourceFile       *string
 		lockFile         *string
 		featureRepoPath  *string
-		featureRepoName  *string
 		featureRepoURL   *string
 	}
 
-	installedPlugins plugins
-	repository       *repository
+	installCmd struct {
+		cmd             *kingpin.CmdClause
+		lockFile        *string
+		featureRepoPath *string
+		featureRepoURL  *string
+		jenkinsHomePath *string
+	}
+
+	installedElements plugins
+	repository        *repository
 }
 
 const (
@@ -61,5 +68,12 @@ func (a *jPluginsApp) init() {
 	a.initCmd.lockFile = a.initCmd.cmd.Flag("lock-file", "Full path to the lock file.").Default(lockFileName).String()
 	a.initCmd.featureRepoPath = a.initCmd.cmd.Flag("features-repo-path", "Path to a feature repository. "+
 		"By default, jplugins store the repo clone in jplugins cache directory.").Default(defaultFeaturesRepoPath).String()
-	a.initCmd.featureRepoURL = a.initCmd.cmd.Flag("features-repo-url", "URL to the feature repository.").Default(defaultFeaturesRepoURL).String()
+	a.initCmd.featureRepoURL = a.initCmd.cmd.Flag("features-repo-url", "URL to the feature repository. NOT IMPLEMENTED").Default(defaultFeaturesRepoURL).String()
+
+	a.installCmd.cmd = a.app.Command("install", "Install plugins and groovies defined by the 'jplugins.lock'.")
+	a.installCmd.lockFile = a.installCmd.cmd.Flag("lock-file", "Full path to the lock file.").Default(lockFileName).String()
+	a.installCmd.featureRepoPath = a.installCmd.cmd.Flag("features-repo-path", "Path to a feature repository. "+
+		"By default, jplugins store the repo clone in jplugins cache directory.").Default(defaultFeaturesRepoPath).String()
+	a.installCmd.featureRepoURL = a.installCmd.cmd.Flag("features-repo-url", "URL to the feature repository. NOT IMPLEMENTED").Default(defaultFeaturesRepoURL).String()
+	a.installCmd.jenkinsHomePath = a.checkVersions.cmd.Flag("jenkins-home", "Where Jenkins is installed.").Default(defaultJenkinsHome).String()
 }

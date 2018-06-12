@@ -22,7 +22,7 @@ func main() {
 		App.doInit()
 		/*	case App.update.cmd.FullCommand():
 			App.doUpdate()*/
-		/*	case App.install.cmd.FullCommand():
-			App.doInstall()*/
+	case App.installCmd.cmd.FullCommand():
+		App.doInstall()
 	}
 }

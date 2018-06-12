@@ -138,7 +138,7 @@ func (s *pluginsStatus) addGroovy(name string, sourcePath string) (ret *groovySt
 	return groovy
 }
 
-func (s *pluginsStatus) obsolete(plugin *pluginManifest) {
+func (s *pluginsStatus) obsolete(plugin *elementManifest) {
 	_, found := s.plugins[plugin.Name]
 
 	if found {
@@ -315,8 +315,7 @@ func (s *pluginsStatus) checkFeature(name string) (_ bool) {
 		s.checkElement(line, func(ftype, fname, version string) {
 			switch ftype {
 			case "groovy":
-				groovyPath := path.Join(s.repoPath, name) // use feature name
-				s.checkGroovy(fname, groovyPath)
+				s.checkGroovy(path.Join(name, fname), s.repoPath)
 			case "plugin":
 				s.checkPlugin(fname, version, nil)
 			default:

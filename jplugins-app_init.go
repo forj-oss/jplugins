@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path"
 	"bufio"
 	"fmt"
 	"os"
@@ -23,13 +24,13 @@ func (a *jPluginsApp) doInit() {
 		return
 	}
 
-	if !a.readFromPreInstalled(*a.initCmd.preInstalledPath) {
+	if !a.readFromSimpleFormat(path.Join(*a.initCmd.preInstalledPath, preInstalledFileName)) {
 		return
 	}
 
-	lockData := newPluginsStatus(a.installedPlugins, repo)
+	lockData := newPluginsStatus(a.installedElements, repo)
 
-	lockData.importInstalled(a.installedPlugins)
+	lockData.importInstalled(a.installedElements)
 
 	if !a.readFeatures(*a.initCmd.featureRepoPath, *a.initCmd.sourceFile, *a.initCmd.featureRepoURL, lockData) {
 		return

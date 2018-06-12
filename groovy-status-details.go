@@ -86,3 +86,7 @@ func (gsd *groovyStatusDetails) defineVersion(bNew bool) (_ bool) {
 	}
 	return true
 }
+
+func (gsd *groovyStatusDetails) installIt(destPath string) (error) {
+	return nil
+}

@@ -21,17 +21,17 @@ func (a *jPluginsApp) doListInstalled() {
 		return
 	}
 	if *a.listInstalled.preInstalled {
-		a.saveVersionAsPreInstalled(*a.listInstalled.jenkinsHomePath, a.installedPlugins)
+		a.saveVersionAsPreInstalled(*a.listInstalled.jenkinsHomePath, a.installedElements)
 		return
 	}
-	a.printOutVersion(a.installedPlugins)
+	a.printOutVersion(a.installedElements)
 }
 
 // readFromJenkins read manifest of each plugins and store information in a.installedPlugins
 func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 	pluginsPath := path.Join(jenkinsHomePath, "plugins")
 
-	a.installedPlugins = make(plugins)
+	a.installedElements = make(plugins)
 
 	fEntries, err := ioutil.ReadDir(pluginsPath)
 
@@ -80,7 +80,7 @@ func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 				continue
 			}
 
-			var manifest *pluginManifest
+			var manifest *elementManifest
 
 			if d, err := ioutil.ReadFile(pluginMetafile); err != nil {
 				gotrace.Error("Unable to read file '%s'. %s. Ignored", pluginMetafile, err)
@@ -95,56 +95,61 @@ func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 				// and embrace value part with "
 				data = manifestRE.ReplaceAllString(data, `$1"$2"`+"\n")
 
-				manifest = new(pluginManifest)
+				manifest = new(elementManifest)
 				if err := yaml.Unmarshal([]byte(data), &manifest); err != nil {
 					gotrace.Error("Unable to read file '%s' as yaml. %s. Ignored", pluginMetafile, err)
 					fmt.Print(data)
 					continue
 				}
+				manifest.elementType = "plugin"
 			}
-			a.installedPlugins[manifest.Name] = manifest
+			a.installedElements[manifest.Name] = manifest
 		}
 	}
 	return true
 }
 
-// readFromPreInstalled load installed plugins from the pre-installed
-func (a *jPluginsApp) readFromPreInstalled(preInstalledPath string) (_ bool) {
-	filePath := path.Join(preInstalledPath, preInstalledFileName)
-	fd, err := os.Open(filePath)
+// readFromSimpleFormat read a simple description file for plugins or groovies.
+func (a *jPluginsApp) readFromSimpleFormat(file string) (_ bool) {
+	fd, err := os.Open(file)
 	if err != nil {
-		gotrace.Error("Unable to open file '%s'. %s", filePath, err)
+		gotrace.Error("Unable to open file '%s'. %s", file, err)
 		return
 	}
 
 	defer fd.Close()
 
 	scanFile := bufio.NewScanner(fd)
-	a.installedPlugins = make(plugins)
+	a.installedElements = make(plugins)
 
 	for scanFile.Scan() {
 		line := scanFile.Text()
+		pluginData := new(elementManifest)
 		pluginRecord := strings.Split(line, ":")
-		if pluginRecord[0] != "plugin" {
+		if pluginRecord[0] != "plugin" && pluginRecord[0] != "groovy" {
 			continue
 		}
-		pluginData := new(pluginManifest)
+		pluginData.elementType = pluginRecord[0]
 		pluginData.Name = pluginRecord[1]
-		pluginData.Version = pluginRecord[2]
-
-		if refPlugin, found := a.repository.Plugins[pluginData.Name]; !found {
-			gotrace.Warning("plugin '%s' is not recognized. Ignored.")
+		if pluginRecord[0] == "plugin" {
+			pluginData.Version = pluginRecord[2]
+			if refPlugin, found := a.repository.Plugins[pluginData.Name]; !found {
+				gotrace.Warning("plugin '%s' is not recognized. Ignored.")
+			} else {
+				pluginData.LongName = refPlugin.Title
+				pluginData.Description = refPlugin.Description
+			}
 		} else {
-			pluginData.LongName = refPlugin.Title
-			pluginData.Description = refPlugin.Description
+			pluginData.commitID = pluginRecord[2]
 		}
-		a.installedPlugins[pluginData.Name] = pluginData
+
+		a.installedElements[pluginData.Name] = pluginData
 	}
 	return true
 }
 
 func (a *jPluginsApp) printOutVersion(plugins plugins) (_ bool) {
-	if a.installedPlugins == nil {
+	if a.installedElements == nil {
 		return
 	}
 
@@ -166,7 +171,7 @@ func (a *jPluginsApp) printOutVersion(plugins plugins) (_ bool) {
 }
 
 func (a *jPluginsApp) saveVersionAsPreInstalled(jenkinsHomePath string, plugins plugins) (_ bool) {
-	if a.installedPlugins == nil {
+	if a.installedElements == nil {
 		return
 	}
 

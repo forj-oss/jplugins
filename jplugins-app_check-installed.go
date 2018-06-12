@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path"
 	"fmt"
 )
 
@@ -12,8 +13,9 @@ func (a *jPluginsApp) doCheckInstalled() {
 		return
 	}
 
+	// TODO: Read from lock file
 	if *a.checkVersions.usePreInstalled {
-		if !a.readFromPreInstalled(*a.checkVersions.preInstalledPath) {
+		if !a.readFromSimpleFormat(path.Join(*a.initCmd.preInstalledPath, preInstalledFileName)) {
 			return
 		}
 	} else {
@@ -22,9 +24,9 @@ func (a *jPluginsApp) doCheckInstalled() {
 		}
 	}
 
-	updates := repo.compare(a.installedPlugins)
+	updates := repo.compare(a.installedElements)
 	updates.displayUpdates()
-	fmt.Println(len(repo.Plugins), "plugins loaded.")
-	fmt.Println(len(a.installedPlugins), "plugins installed.")
+	fmt.Println(len(repo.Plugins), "plugins/groovies loaded.")
+	fmt.Println(len(a.installedElements), "plugins/groovies installed.")
 
 }

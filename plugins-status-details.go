@@ -120,7 +120,7 @@ func (sd *pluginsStatusDetails) addConstraint(constraintsGiven string) *pluginsS
 	return sd
 }
 
-func (sd *pluginsStatusDetails) initAsObsolete(plugin *pluginManifest) *pluginsStatusDetails {
+func (sd *pluginsStatusDetails) initAsObsolete(plugin *elementManifest) *pluginsStatusDetails {
 	if sd == nil {
 		return nil
 	}
@@ -149,4 +149,8 @@ func (sd *pluginsStatusDetails) setIsLatest() {
 	}
 
 	sd.latest = true
+}
+
+func (sd *pluginsStatusDetails) installIt(destPath string) (error) {
+	return nil
 }
