@@ -59,6 +59,7 @@ func (a *jPluginsApp) init() {
 	a.initCmd.preInstalledPath = a.initCmd.cmd.Flag("pre-installed-path", "Path to the pre-installed.lst file.").Default(".").String()
 	a.initCmd.sourceFile = a.initCmd.cmd.Flag("feature-file", "Full path to a feature file.").Default(featureFileName).String()
 	a.initCmd.lockFile = a.initCmd.cmd.Flag("lock-file", "Full path to the lock file.").Default(lockFileName).String()
-	a.initCmd.featureRepoPath = a.initCmd.cmd.Flag("features-repo-path", "Path to a feature repository. By default, jplugins store the repo clone in jplugins cache directory.").String()
+	a.initCmd.featureRepoPath = a.initCmd.cmd.Flag("features-repo-path", "Path to a feature repository. "+
+		"By default, jplugins store the repo clone in jplugins cache directory.").Default(defaultFeaturesRepoPath).String()
 	a.initCmd.featureRepoURL = a.initCmd.cmd.Flag("features-repo-url", "URL to the feature repository.").Default(defaultFeaturesRepoURL).String()
 }
