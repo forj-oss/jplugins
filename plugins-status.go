@@ -3,13 +3,14 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"forjj/utils"
 	"net/url"
 	"os"
 	"path"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/forj-oss/forjj/utils"
 
 	"github.com/forj-oss/forjj/git"
 
@@ -133,7 +134,7 @@ func (s *pluginsStatus) addGroovy(name string, sourcePath string) (ret *groovySt
 	if !found {
 		groovy = newGroovyStatusDetails(name, sourcePath)
 	}
-	groovy.computeM5Sum(!found)
+	groovy.defineVersion(!found)
 	return groovy
 }
 
@@ -183,7 +184,7 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 			latest = " (latest)"
 		}
 		if old := plugin.oldVersion.String(); old == plugin.newVersion.String() {
-			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-10s => No update%s\n", title+" ("+plugin.name+")", plugin.oldVersion, latest)
+			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %s%s\n", title+" ("+plugin.name+")", plugin.oldVersion, latest)
 		} else {
 			iCountUpdated++
 			if old == "new" {
@@ -213,15 +214,15 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 	iCountGroovyNew := 0
 	for _, name := range pluginsList {
 		groovy := s.groovies[name]
-		if old := groovy.oldMd5; old == groovy.newMd5 {
-			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-30s => No update\n", name, groovy.newMd5)
+		if old := groovy.oldCommit; old == groovy.newCommit {
+			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %s\n", name, groovy.newCommit)
 		} else {
 			iCountGroovyUpdated++
 			if old == "" {
 				iCountGroovyNew++
 				old = "new"
 			}
-			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-30s => %s\n", name, old, groovy.newMd5)
+			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-30s => %s\n", name, old, groovy.newCommit)
 		}
 
 	}
@@ -283,7 +284,7 @@ func (s *pluginsStatus) checkFeature(name string) (_ bool) {
 		return
 	}
 	if !s.useLocal {
-		gotrace.Error("Git clone of repository not currently implemented.")
+		gotrace.Error("Git clone of repository not currently implemented. Do git task and use --features-repo-path")
 		return
 	}
 
