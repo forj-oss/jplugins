@@ -2,6 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path"
 
 	"github.com/forj-oss/forjj-modules/trace"
 	goversion "github.com/hashicorp/go-version"
@@ -151,6 +155,30 @@ func (sd *pluginsStatusDetails) setIsLatest() {
 	sd.latest = true
 }
 
-func (sd *pluginsStatusDetails) installIt(destPath string) (error) {
+func (sd *pluginsStatusDetails) installIt(destPath string) (err error) {
+	var resp *http.Response
+	pluginURL := JenkinsRepoURL + "/" + JenkinsPluginRepo + "/" + sd.name + "/" + sd.newVersion.String() + "/" + path.Base(sd.name) + ".hpi"
+	destFile := path.Join(destPath, path.Base(sd.name)+".hpi")
+
+	if resp, err = http.Get(pluginURL); err != nil {
+		err = fmt.Errorf("Unable to read '%s'. %s", pluginURL, err)
+		return
+	}
+	defer resp.Body.Close()
+
+	var destfd *os.File
+	destfd, err = os.Create(destFile)
+	if err != nil {
+		return err
+	}
+	defer destfd.Close()
+
+	_, err = io.Copy(destfd, resp.Body)
+	if err != nil {
+		return fmt.Errorf("Unable to copy %s to %s. %s", pluginURL, destFile, err)
+	}
+
+	gotrace.Trace("Copied: %s => %s", pluginURL, destFile)
+
 	return nil
 }
