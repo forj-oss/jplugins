@@ -215,14 +215,14 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 	for _, name := range pluginsList {
 		groovy := s.groovies[name]
 		if old := groovy.oldCommit; old == groovy.newCommit {
-			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %s\n", name, groovy.newCommit)
+			fmt.Printf("%-"+strconv.Itoa(iMaxTitle)+"s : %s\n", name, groovy.newCommit)
 		} else {
 			iCountGroovyUpdated++
 			if old == "" {
 				iCountGroovyNew++
 				old = "new"
 			}
-			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-30s => %s\n", name, old, groovy.newCommit)
+			fmt.Printf("%-"+strconv.Itoa(iMaxTitle)+"s : %-30s => %s\n", name, old, groovy.newCommit)
 		}
 
 	}

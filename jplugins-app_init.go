@@ -1,10 +1,10 @@
 package main
 
 import (
-	"path"
 	"bufio"
 	"fmt"
 	"os"
+	"path"
 	"sort"
 	"strings"
 
@@ -78,7 +78,7 @@ func (a *jPluginsApp) writeLockFile(lockFile string, lockData *pluginsStatus) (_
 
 	for _, name := range pluginsList {
 		groovy := lockData.groovies[name]
-		fmt.Fprintf(fd, "groovy:%s:%s\n", name, groovy.newMd5)
+		fmt.Fprintf(fd, "groovy:%s:%s\n", name, groovy.newCommit)
 	}
 
 	gotrace.Info("%s written\n", lockFileName)

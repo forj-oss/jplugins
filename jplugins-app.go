@@ -75,5 +75,5 @@ func (a *jPluginsApp) init() {
 	a.installCmd.featureRepoPath = a.installCmd.cmd.Flag("features-repo-path", "Path to a feature repository. "+
 		"By default, jplugins store the repo clone in jplugins cache directory.").Default(defaultFeaturesRepoPath).String()
 	a.installCmd.featureRepoURL = a.installCmd.cmd.Flag("features-repo-url", "URL to the feature repository. NOT IMPLEMENTED").Default(defaultFeaturesRepoURL).String()
-	a.installCmd.jenkinsHomePath = a.checkVersions.cmd.Flag("jenkins-home", "Where Jenkins is installed.").Default(defaultJenkinsHome).String()
+	a.installCmd.jenkinsHomePath = a.installCmd.cmd.Flag("jenkins-home", "Where Jenkins is installed.").Default(defaultJenkinsHome).String()
 }

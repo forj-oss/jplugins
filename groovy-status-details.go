@@ -78,7 +78,7 @@ func (gsd *groovyStatusDetails) defineVersion(bNew bool) (_ bool) {
 	if len(gsd.commitHistory) == 0 {
 		return true
 	}
-	latest :=  gsd.commitHistory[0]
+	latest := gsd.commitHistory[0]
 	if bNew {
 		gsd.newCommit = latest
 	} else {
@@ -87,6 +87,33 @@ func (gsd *groovyStatusDetails) defineVersion(bNew bool) (_ bool) {
 	return true
 }
 
-func (gsd *groovyStatusDetails) installIt(destPath string) (error) {
+func (gsd *groovyStatusDetails) installIt(destPath string) error {
+	git.RunInPath(gsd.sourcePath, func() error {
+		if git.Do("checkout", gsd.newCommit) != 0 {
+			return fmt.Errorf("Unable to checkout version %s (commit ID) for %s", gsd.newCommit, gsd.name+".groovy")
+		}
+		return nil
+	})
+	srcFile := path.Join(gsd.sourcePath, gsd.name+".groovy")
+	destFile := path.Join(destPath, path.Base(gsd.name)+".groovy")
+	srcfd, err := os.Open(srcFile)
+	if err != nil {
+		return err
+	}
+	defer srcfd.Close()
+
+	var destfd *os.File
+	destfd, err = os.Create(destFile)
+	if err != nil {
+		return err
+	}
+	defer destfd.Close()
+
+	_, err = io.Copy(destfd, srcfd)
+	if err != nil {
+		return fmt.Errorf("Unable to copy %s to %s. %s", srcFile, destFile, err)
+	}
+
+	gotrace.Trace("Copied: %s => %s", srcFile, destFile)
 	return nil
 }
