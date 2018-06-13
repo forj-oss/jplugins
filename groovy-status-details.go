@@ -10,7 +10,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/forj-oss/forjj/git"
+	git "github.com/forj-oss/go-git"
 
 	"github.com/forj-oss/forjj-modules/trace"
 )

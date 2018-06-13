@@ -6,7 +6,7 @@ import (
 
 	"github.com/alecthomas/kingpin"
 
-	"github.com/forj-oss/forjj/git"
+	"github.com/forj-oss/go-git"
 
 	"github.com/forj-oss/forjj-modules/trace"
 )

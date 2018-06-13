@@ -1,5 +1,5 @@
-hash: aa5df739e6e1b00546667bfa2a7b829c5c1d411a8e865a3ad2f0d2580c9aeb39
-updated: 2018-06-08T11:24:24.409957971Z
+hash: 3ae2276801bec537e2a3275a7120d19af6aecd101808e9db8747893edcf1d19c
+updated: 2018-06-13T12:55:41.382538531Z
 imports:
 - name: github.com/alecthomas/kingpin
   version: 947dcec5ba9c011838740e680966fd7087a71d0d
@@ -12,13 +12,15 @@ imports:
 - name: github.com/fatih/color
   version: 2d684516a8861da43017284349b7e303e809ac21
 - name: github.com/forj-oss/forjj
-  version: 7819fbdd36dbebdf7dc2589e1a30bdb183568fb6
+  version: 3d63aa62ed23815411ebd468f4e1ffe283af82e4
   subpackages:
   - utils
 - name: github.com/forj-oss/forjj-modules
   version: 45525459714d36e6eb5f3ee574e90997b81712cf
   subpackages:
   - trace
+- name: github.com/forj-oss/go-git
+  version: 708d0f7a3918ac54870988d5a148ffa15610cde3
 - name: github.com/hashicorp/go-version
   version: 23480c0665776210b5fbbac6eaaee40e3e6a96b7
 - name: github.com/kvz/logstreamer
@@ -28,7 +30,7 @@ imports:
 - name: github.com/mattn/go-isatty
   version: 6ca4dbf54d38eea1a992b3c722a76a5d1c4cb25c
 - name: golang.org/x/sys
-  version: 9527bec2660bd847c050fda93a0f0c6dee0800bb
+  version: a9e25c09b96b8870693763211309e213c6ef299d
   subpackages:
   - unix
 - name: gopkg.in/yaml.v2
