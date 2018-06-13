@@ -1,4 +1,4 @@
 package main
 
-type plugins map[string]*pluginManifest
+type plugins map[string]*elementManifest
 

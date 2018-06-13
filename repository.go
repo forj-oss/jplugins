@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/forj-oss/forjj/utils"
+	"github.com/forj-oss/utils"
 
 	"github.com/forj-oss/forjj-modules/trace"
 )

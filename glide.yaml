@@ -4,6 +4,5 @@ import:
   version: ^2.2.6
 - package: github.com/hashicorp/go-version
 - package: github.com/forj-oss/forjj-modules
-- package: github.com/forj-oss/forjj
-  subpackages:
-  - utils
+- package: github.com/forj-oss/utils
+- package: github.com/forj-oss/go-git

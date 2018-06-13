@@ -5,7 +5,7 @@ import (
 	"regexp"
 
 	"github.com/forj-oss/forjj-modules/trace"
-	"github.com/forj-oss/forjj/utils"
+	"github.com/forj-oss/utils"
 	goversion "github.com/hashicorp/go-version"
 )
 
@@ -62,8 +62,8 @@ func (p *repositoryPlugin) DetermineVersion(versionConstraints map[string]govers
 	version.Set(p.Version)
 	var history []versionStruct
 	gotrace.Trace("Determining version for '%s'. %d constraints to verify", p.Name, len(versionConstraints))
+	latest = true
 	for _, constraints := range versionConstraints {
-		latest = true
 		gotrace.Trace("Constraint to check: '%s'", constraints)
 		if history == nil {
 			// Check first from central repository data

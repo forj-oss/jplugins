@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/forj-oss/forjj/utils"
+	"github.com/forj-oss/utils"
 
-	"github.com/forj-oss/forjj/git"
+	"github.com/forj-oss/go-git"
 
 	"github.com/forj-oss/forjj-modules/trace"
 )
@@ -138,7 +138,7 @@ func (s *pluginsStatus) addGroovy(name string, sourcePath string) (ret *groovySt
 	return groovy
 }
 
-func (s *pluginsStatus) obsolete(plugin *pluginManifest) {
+func (s *pluginsStatus) obsolete(plugin *elementManifest) {
 	_, found := s.plugins[plugin.Name]
 
 	if found {
@@ -173,24 +173,27 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 
 	sort.Strings(pluginsList)
 
-	fmt.Print("\nPlugins:\n==========\n")
+	fmt.Print("\nPlugins:\n==========\n+-- New plugin\n|+- Latest version\nvv\n")
 
 	iCountUpdated := 0
 	iCountNew := 0
 	for _, title := range pluginsList {
 		plugin := pluginsDetails[title]
-		latest := ""
+		latestTag := " "
+		newTag := " "
 		if plugin.latest {
-			latest = " (latest)"
+			latestTag = "L"
 		}
 		if old := plugin.oldVersion.String(); old == plugin.newVersion.String() {
-			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %s%s\n", title+" ("+plugin.name+")", plugin.oldVersion, latest)
+			fmt.Printf("%s%s | %-"+strconv.Itoa(iMaxTitle+3)+"s : %s\n", newTag, latestTag, title+" ("+plugin.name+")", old)
 		} else {
 			iCountUpdated++
 			if old == "new" {
 				iCountNew++
+				newTag = "N"
+				old = ""
 			}
-			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-10s => %s%s\n", title+" ("+plugin.name+")", plugin.oldVersion, plugin.newVersion, latest)
+			fmt.Printf("%s%s | %-"+strconv.Itoa(iMaxTitle+3)+"s : %-10s => %s\n", newTag, latestTag, title+" ("+plugin.name+")", old, plugin.newVersion)
 		}
 
 	}
@@ -208,21 +211,24 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 
 	sort.Strings(pluginsList)
 
-	fmt.Print("\nGroovies:\n==========\n")
+	fmt.Print("\nGroovies:\n==========\n+-- New Groovy file\n|+- Latest version\nvv\n")
 
 	iCountGroovyUpdated := 0
 	iCountGroovyNew := 0
 	for _, name := range pluginsList {
 		groovy := s.groovies[name]
+		latestTag := " "
+		newTag := " "
 		if old := groovy.oldCommit; old == groovy.newCommit {
-			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %s\n", name, groovy.newCommit)
+			fmt.Printf("%s%s | %-"+strconv.Itoa(iMaxTitle)+"s : %s\n", newTag, latestTag, name, groovy.newCommit)
 		} else {
 			iCountGroovyUpdated++
 			if old == "" {
 				iCountGroovyNew++
 				old = "new"
+				newTag = "N"
 			}
-			fmt.Printf("%-"+strconv.Itoa(iMaxTitle+3)+"s : %-30s => %s\n", name, old, groovy.newCommit)
+			fmt.Printf("%s%s | %-"+strconv.Itoa(iMaxTitle)+"s : %-30s => %s\n", newTag, latestTag, name, old, groovy.newCommit)
 		}
 
 	}
@@ -315,8 +321,7 @@ func (s *pluginsStatus) checkFeature(name string) (_ bool) {
 		s.checkElement(line, func(ftype, fname, version string) {
 			switch ftype {
 			case "groovy":
-				groovyPath := path.Join(s.repoPath, name) // use feature name
-				s.checkGroovy(fname, groovyPath)
+				s.checkGroovy(path.Join(name, fname), s.repoPath)
 			case "plugin":
 				s.checkPlugin(fname, version, nil)
 			default:
