@@ -1,6 +1,7 @@
 package main
 
 import (
+	git "github.com/forj-oss/go-git"
 	"bufio"
 	"fmt"
 	"io/ioutil"
@@ -66,6 +67,11 @@ func (a *jPluginsApp) init() {
 		"By default, jplugins store the repo clone in jplugins cache directory.").Default(defaultFeaturesRepoPath).String()
 	a.installCmd.featureRepoURL = a.installCmd.cmd.Flag("features-repo-url", "URL to the feature repository. NOT IMPLEMENTED").Default(defaultFeaturesRepoURL).String()
 	a.installCmd.jenkinsHomePath = a.installCmd.cmd.Flag("jenkins-home", "Where Jenkins is installed.").Default(defaultJenkinsHome).String()
+
+	// Do not use default git wrapper logOut function.
+	git.SetLogFunc(func(msg string){
+		gotrace.Trace(msg)
+	})
 }
 
 func (a *jPluginsApp) writeLockFile(lockFile string, lockData *pluginsStatus) (_ bool) {

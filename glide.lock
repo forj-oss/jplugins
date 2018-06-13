@@ -1,5 +1,5 @@
-hash: 3ae2276801bec537e2a3275a7120d19af6aecd101808e9db8747893edcf1d19c
-updated: 2018-06-13T12:55:41.382538531Z
+hash: d2b2c31de3fba1b720d6d5babf94847dd0707e1ebd41a005b0bae1606f2db613
+updated: 2018-06-13T13:50:33.441464919Z
 imports:
 - name: github.com/alecthomas/kingpin
   version: 947dcec5ba9c011838740e680966fd7087a71d0d
@@ -21,6 +21,8 @@ imports:
   - trace
 - name: github.com/forj-oss/go-git
   version: 708d0f7a3918ac54870988d5a148ffa15610cde3
+- name: github.com/forj-oss/utils
+  version: 0cfa3e3b865f2eb40bbf7af9ab953646072cfd3a
 - name: github.com/hashicorp/go-version
   version: 23480c0665776210b5fbbac6eaaee40e3e6a96b7
 - name: github.com/kvz/logstreamer

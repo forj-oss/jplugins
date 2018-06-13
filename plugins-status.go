@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/forj-oss/forjj/utils"
+	"github.com/forj-oss/utils"
 
 	"github.com/forj-oss/go-git"
 

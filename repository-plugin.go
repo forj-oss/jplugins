@@ -5,7 +5,7 @@ import (
 	"regexp"
 
 	"github.com/forj-oss/forjj-modules/trace"
-	"github.com/forj-oss/forjj/utils"
+	"github.com/forj-oss/utils"
 	goversion "github.com/hashicorp/go-version"
 )
 
