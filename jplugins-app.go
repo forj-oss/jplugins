@@ -134,6 +134,7 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 	lockData.setFeaturesPath(featurePath)
 	lockData.setFeaturesRepoURL(featureURL)
 
+	bError := false
 	fileScan := bufio.NewScanner(fd)
 	for fileScan.Scan() {
 		line := strings.Trim(fileScan.Text(), " \n")
@@ -143,15 +144,26 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 		lockData.checkElement(line, func(ftype, name, version string) {
 			switch ftype {
 			case "feature":
-				lockData.checkFeature(name)
+				if err = lockData.checkFeature(name) ; err != nil {
+					gotrace.Error("%s", err)
+					bError = true
+				}
 			//case "groovy":
 			case "plugin":
-				lockData.checkPlugin(name, version, nil)
+				if err := lockData.checkPlugin(name, version, nil) ; err != nil {
+					gotrace.Error("%s", err)
+					bError = true
+				}
 			default:
 				gotrace.Warning("feature type '%s' is currently not supported. Ignored.", ftype)
 				return
 			}
 		})
+	}
+
+	if bError {
+		gotrace.Error("Errors detected. Exiting.")
+		return false
 	}
 
 	if gotrace.IsInfoMode() {

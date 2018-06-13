@@ -285,13 +285,12 @@ func (s *pluginsStatus) checkElement(line string, split func(string, string, str
 
 }
 
-func (s *pluginsStatus) checkFeature(name string) (_ bool) {
+func (s *pluginsStatus) checkFeature(name string) (_ error) {
 	if s == nil {
 		return
 	}
 	if !s.useLocal {
-		gotrace.Error("Git clone of repository not currently implemented. Do git task and use --features-repo-path")
-		return
+		return fmt.Errorf("Git clone of repository not currently implemented. Do git task and use --features-repo-path")
 	}
 
 	if err := git.RunInPath(s.repoPath, func() error {
@@ -300,15 +299,13 @@ func (s *pluginsStatus) checkFeature(name string) (_ bool) {
 		}
 		return nil
 	}); err != nil {
-		gotrace.Error("Issue with '%s', %s", s.repoPath, err)
-		return
+		return fmt.Errorf("Issue with '%s', %s", s.repoPath, err)
 	}
 
 	featureFile := path.Join(s.repoPath, name, name+".desc")
 	fd, err := os.Open(featureFile)
 	if err != nil {
-		gotrace.Error("Unable to read feature file '%s'. %s", featureFile, err)
-		return
+		return fmt.Errorf("Unable to read feature file '%s'. %s", featureFile, err)
 	}
 	defer fd.Close()
 
@@ -321,42 +318,44 @@ func (s *pluginsStatus) checkFeature(name string) (_ bool) {
 		s.checkElement(line, func(ftype, fname, version string) {
 			switch ftype {
 			case "groovy":
-				s.checkGroovy(path.Join(name, fname), s.repoPath)
+				err = s.checkGroovy(path.Join(name, fname), s.repoPath)
 			case "plugin":
-				s.checkPlugin(fname, version, nil)
+				err = s.checkPlugin(fname, version, nil)
 			default:
 				gotrace.Warning("feature type '%s' is currently not supported. Ignored.", ftype)
 				return
 			}
-
 		})
+		if err != nil {
+			break
+		}
 	}
-	return true
+	return err
 }
 
-func (s *pluginsStatus) checkGroovy(name, groovyPath string) {
+func (s *pluginsStatus) checkGroovy(name, groovyPath string) error {
 
 	groovy, found := s.groovies[name]
 	if !found {
 		if groovy = s.addGroovy(name, groovyPath); groovy == nil {
-			return
+			return fmt.Errorf("Unable to add %s several times", name)
 		}
 		gotrace.Info("New groovy '%s' identified.", name)
 		s.groovies[name] = groovy
 	}
+	return nil
 }
 
-func (s *pluginsStatus) checkPlugin(name, versionConstraints string, parentDependency *pluginsStatusDetails) {
+func (s *pluginsStatus) checkPlugin(name, versionConstraints string, parentDependency *pluginsStatusDetails) error {
 	refPlugin, found := s.ref.get(name)
 	if !found {
-		gotrace.Error("Plugin '%s' not found in the public repository. Ignored.", name)
-		return
+		return fmt.Errorf("Plugin '%s' not found in the public repository", name)
 	}
 
 	plugin, found := s.plugins[name]
 	if !found {
 		if plugin = s.addPlugin("new", refPlugin); plugin == nil {
-			return
+			return fmt.Errorf("Unable to add %s several times", name)
 		}
 		gotrace.Info("New plugin '%s' identified.", name)
 	}
@@ -375,7 +374,7 @@ func (s *pluginsStatus) checkPlugin(name, versionConstraints string, parentDepen
 		}
 		s.checkPlugin(dep.Name, dep.Version, plugin)
 	}
-
+	return nil
 }
 
 // definePluginsVersion will apply latest version of each plugin except if jplugins.lst or *.desc apply a constraints
