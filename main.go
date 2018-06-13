@@ -15,14 +15,14 @@ func main() {
 	switch kingpin.MustParse(App.app.Parse(os.Args[1:])) {
 	// Register user
 	case App.listInstalled.cmd.FullCommand():
-		App.doListInstalled()
+		App.listInstalled.doListInstalled()
 	case App.checkVersions.cmd.FullCommand():
-		App.doCheckInstalled()
+		App.checkVersions.doCheckInstalled()
 	case App.initCmd.cmd.FullCommand():
-		App.doInit()
+		App.initCmd.doInit()
 		/*	case App.update.cmd.FullCommand():
 			App.doUpdate()*/
 	case App.installCmd.cmd.FullCommand():
-		App.doInstall()
+		App.installCmd.doInstall()
 	}
 }
