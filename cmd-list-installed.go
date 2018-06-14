@@ -17,8 +17,10 @@ func (c *cmdListInstalled) doListInstalled() {
 		os.Exit(1)
 	}
 	if *App.listInstalled.preInstalled {
-		App.saveVersionAsPreInstalled(*c.jenkinsHomePath, App.installedElements)
-		os.Exit(1)
+		if !App.saveVersionAsPreInstalled(*c.jenkinsHomePath, App.installedElements) {
+			os.Exit(1)
+		}
+		return
 	}
 	App.printOutVersion(App.installedElements)
 }
