@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/alecthomas/kingpin"
 )
 
@@ -12,11 +14,11 @@ type cmdListInstalled struct {
 
 func (c *cmdListInstalled) doListInstalled() {
 	if !App.readFromJenkins(*c.jenkinsHomePath) {
-		return
+		os.Exit(1)
 	}
 	if *App.listInstalled.preInstalled {
 		App.saveVersionAsPreInstalled(*c.jenkinsHomePath, App.installedElements)
-		return
+		os.Exit(1)
 	}
 	App.printOutVersion(App.installedElements)
 }

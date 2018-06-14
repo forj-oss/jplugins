@@ -63,12 +63,12 @@ func (c *cmdInstall) doInstall() {
 	App.repository = NewRepository()
 	repo := App.repository
 	if !repo.loadFrom() {
-		return
+		os.Exit(1)
 	}
 
 	// Load the lock file in App.installedPlugins
 	if !App.readFromSimpleFormat(*c.lockFile) {
-		return
+		os.Exit(1)
 	}
 
 	var savedBranch string
