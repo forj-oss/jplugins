@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path"
 
 	"github.com/alecthomas/kingpin"
@@ -20,11 +21,11 @@ func (c *cmdInit) doInit() {
 	App.repository = NewRepository()
 	repo := App.repository
 	if !repo.loadFrom() {
-		return
+		os.Exit(1)
 	}
 
 	if !App.readFromSimpleFormat(path.Join(*c.preInstalledPath, preInstalledFileName)) {
-		return
+		os.Exit(1)
 	}
 
 	lockData := newPluginsStatus(App.installedElements, repo)
@@ -32,11 +33,11 @@ func (c *cmdInit) doInit() {
 	lockData.importInstalled(App.installedElements)
 
 	if !App.readFeatures(*c.featureRepoPath, *c.sourceFile, *c.featureRepoURL, lockData) {
-		return
+		os.Exit(1)
 	}
 
 	if !App.writeLockFile(*c.lockFile, lockData) {
-		return
+		os.Exit(1)
 	}
 
 }
