@@ -1,7 +1,6 @@
 package main
 
 import (
-	git "github.com/forj-oss/go-git"
 	"bufio"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +9,9 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	git "github.com/forj-oss/go-git"
+	"github.com/forj-oss/utils"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/forj-oss/forjj-modules/trace"
@@ -69,7 +71,7 @@ func (a *jPluginsApp) init() {
 	a.installCmd.jenkinsHomePath = a.installCmd.cmd.Flag("jenkins-home", "Where Jenkins is installed.").Default(defaultJenkinsHome).String()
 
 	// Do not use default git wrapper logOut function.
-	git.SetLogFunc(func(msg string){
+	git.SetLogFunc(func(msg string) {
 		gotrace.Trace(msg)
 	})
 }
@@ -144,13 +146,13 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 		lockData.checkElement(line, func(ftype, name, version string) {
 			switch ftype {
 			case "feature":
-				if err = lockData.checkFeature(name) ; err != nil {
+				if err = lockData.checkFeature(name); err != nil {
 					gotrace.Error("%s", err)
 					bError = true
 				}
 			//case "groovy":
 			case "plugin":
-				if err := lockData.checkPlugin(name, version, nil) ; err != nil {
+				if err := lockData.checkPlugin(name, version, nil); err != nil {
 					gotrace.Error("%s", err)
 					bError = true
 				}
@@ -228,10 +230,14 @@ func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 
 			pluginMetafile := path.Join(pluginsPath, pluginName, "META-INF", "MANIFEST.MF")
 
+			tmpExtract := false
+			packagePath := path.Join(pluginsPath, pluginName)
 			if _, err := os.Stat(pluginMetafile); err != nil && os.IsNotExist(err) {
-				// TODO: Ignored for now. but may need to extract the plugin file to get the version
-				gotrace.Warning("Plugin '%s' found but not expanded. Ignored. (fix in next jplugins version)", pluginMetafile)
-				continue
+				if _, s := utils.RunCmdOutput("unzip", "-q", packagePath+".hpi", "META-INF/MANIFEST.MF", "-d", packagePath); s != 0 {
+					gotrace.Error("Unable to extract MANIFEST.MF from plugin package %s", pluginName)
+					continue
+				}
+				tmpExtract = true
 			}
 
 			var manifest *elementManifest
@@ -256,6 +262,10 @@ func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 					continue
 				}
 				manifest.elementType = "plugin"
+			}
+			if tmpExtract {
+				os.RemoveAll(packagePath)
+				tmpExtract = false
 			}
 			a.installedElements[manifest.Name] = manifest
 		}

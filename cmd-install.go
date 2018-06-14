@@ -12,9 +12,8 @@ import (
 
 	"github.com/alecthomas/kingpin"
 
-	"github.com/forj-oss/go-git"
-
 	"github.com/forj-oss/forjj-modules/trace"
+	git "github.com/forj-oss/go-git"
 )
 
 type cmdInstall struct {
@@ -77,6 +76,10 @@ func (c *cmdInstall) doInstall() {
 	git.RunInPath(*c.featureRepoPath, func() error {
 		git.Do("stash")
 		savedBranch = git.GetCurrentBranch()
+		return nil
+	})
+	defer git.RunInPath(*c.featureRepoPath, func() error {
+		git.Do("checkout", savedBranch)
 		return nil
 	})
 
@@ -163,10 +166,6 @@ func (c *cmdInstall) doInstall() {
 			}
 		}
 	}
-	git.RunInPath(*c.featureRepoPath, func() error {
-		git.Do("checkout", savedBranch)
-		return nil
-	})
 
 	gotrace.Info("Total %d installed: %d plugins, %d groovies. %d obsoleted. %d error(s) found.\n", iCount, iCountPlugin, iCountGroovy, iCountObsolete, iCountError)
 	if iCountError > 0 {
