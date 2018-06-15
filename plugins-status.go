@@ -182,7 +182,7 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 		latestTag := " "
 		newTag := " "
 		if plugin.latest {
-			latestTag = "L"
+			latestTag = "X"
 		}
 		if old := plugin.oldVersion.String(); old == plugin.newVersion.String() {
 			fmt.Printf("%s%s | %-"+strconv.Itoa(iMaxTitle+3)+"s : %s\n", newTag, latestTag, title+" ("+plugin.name+")", old)
@@ -190,7 +190,7 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 			iCountUpdated++
 			if old == "new" {
 				iCountNew++
-				newTag = "N"
+				newTag = "X"
 				old = ""
 			}
 			fmt.Printf("%s%s | %-"+strconv.Itoa(iMaxTitle+3)+"s : %-10s => %s\n", newTag, latestTag, title+" ("+plugin.name+")", old, plugin.newVersion)
@@ -226,7 +226,7 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 			if old == "" {
 				iCountGroovyNew++
 				old = "new"
-				newTag = "N"
+				newTag = "X"
 			}
 			fmt.Printf("%s%s | %-"+strconv.Itoa(iMaxTitle)+"s : %-30s => %s\n", newTag, latestTag, name, old, groovy.newCommit)
 		}
