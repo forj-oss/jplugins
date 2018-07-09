@@ -18,13 +18,14 @@ import (
 )
 
 type pluginsStatus struct {
-	plugins   map[string]*pluginsStatusDetails
-	groovies  map[string]*groovyStatusDetails
-	installed plugins
-	ref       *repository
-	repoPath  string
-	repoURL   []*url.URL
-	useLocal  bool
+	plugins       map[string]*pluginsStatusDetails
+	groovies      map[string]*groovyStatusDetails
+	pluginsStatus map[string]*pluginsStatusDetails
+	installed     plugins
+	ref           *repository
+	repoPath      string
+	repoURL       []*url.URL
+	useLocal      bool
 }
 
 func newPluginsStatus(installed plugins, ref *repository) (pluginsCompared *pluginsStatus) {
@@ -72,10 +73,14 @@ func (s *pluginsStatus) setFeaturesPath(repoPath string) error {
 	return nil
 }
 
+// compare only plugins
 func (s *pluginsStatus) compare() {
 	installed := s.installed
 	ref := s.ref
 	for name, plugin := range installed {
+		if plugin.elementType != "plugin" {
+			continue
+		}
 		refPlugin, found := ref.get(name)
 		if !found {
 			s.obsolete(plugin)
@@ -158,27 +163,15 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 		return true
 	}
 
-	pluginsList := make([]string, len(s.plugins))
-	pluginsDetails := make(map[string]*pluginsStatusDetails)
-	iCount := 0
-	iMaxTitle := 0
-	for _, plugin := range s.plugins {
-		pluginsList[iCount] = plugin.title
-		pluginsDetails[plugin.title] = plugin
-		if val := len(plugin.title) + len(plugin.name); val > iMaxTitle {
-			iMaxTitle = val
-		}
-		iCount++
-	}
-
-	sort.Strings(pluginsList)
+	s.pluginsStatus = make(map[string]*pluginsStatusDetails)
+	pluginsList, iMaxTitle := s.sortPlugins()
 
 	fmt.Print("\nPlugins:\n==========\n+-- New plugin\n|+- Latest version\nvv\n")
 
 	iCountUpdated := 0
 	iCountNew := 0
 	for _, title := range pluginsList {
-		plugin := pluginsDetails[title]
+		plugin := s.pluginsStatus[title]
 		latestTag := " "
 		newTag := " "
 		if plugin.latest {
@@ -233,7 +226,7 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 
 	}
 
-	fmt.Printf("\nFound %d/%d plugin(s) updates available. %d are new.\n", iCountUpdated, iCount, iCountNew)
+	fmt.Printf("\nFound %d/%d plugin(s) updates available. %d are new.\n", iCountUpdated, len(s.plugins), iCountNew)
 	fmt.Printf("Found %d/%d groovy(ies) updates available. %d are new.\n", iCountGroovyUpdated, iCountGroovy, iCountGroovyNew)
 
 	return true
@@ -433,4 +426,19 @@ func (s *pluginsStatus) checkMinDep() (_ bool) {
 		}
 	}
 	return true
+}
+
+func (s *pluginsStatus) sortPlugins() (pluginsList []string, maxTitle int) {
+	pluginsList = make([]string, len(s.plugins))
+	iCount := 0
+	for _, plugin := range s.plugins {
+		pluginsList[iCount] = plugin.title
+		s.pluginsStatus[plugin.title] = plugin
+		if val := len(plugin.title) + len(plugin.name); val > maxTitle {
+			maxTitle = val
+		}
+		iCount++
+	}
+	sort.Strings(pluginsList)
+	return
 }
