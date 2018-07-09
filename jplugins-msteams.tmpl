@@ -1,0 +1,8 @@
+[
+{{ range . }}\
+    {
+        "name": "{{ .Name }}",
+        "value": "updated from {{ .OldVersion }} to {{ .NewVersion }}",
+    },
+{{ end}}\
+]

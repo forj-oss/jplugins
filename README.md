@@ -7,7 +7,7 @@ Why do we need to do that?
 Jenkins itself has all functions to manage all plugins. (install/update, alerts, ...) 
 It offers also some functionnality from API perspective.
 
-So, when we want to update Jenkins and or plugins, we as jenkins to do it.
+So, when we want to update Jenkins and or plugins, we ask jenkins to do it.
 But this task is done on Jenkins running in production.
 
 In DevOps world, we would like to test this before and even prepare a package with those 
@@ -22,17 +22,17 @@ docker rm -f jenkins-master # or do a safe shutdown then remove
 docker run -it -d ... jenkins:<V2>
 ```
 
-With Jenkins docker image, we can specify a collection of plugins (plugins.txt)
-to install them. ut as soon as installed, they gets never updated by this mechanism
+With [official Jenkins docker image](https://github.com/jenkinsci/docker/blob/master/README.md#preinstalling-plugins), we can specify a collection of plugins (plugins.txt)
+to install them. But as soon as installed, they gets never updated by this mechanism
 
 As well, Jenkins and plugins configuration page are not managed (set and maintain)
 
 That's where jenkins-install-inits comes in the view:
 
-The project add notion of Jenkins features, which enhance installation plugin by
-installing plugins and groovy files (install.groovy.d), so that when we install
-plugin, we can configure and maintain those plugins or Jenkins configuration from 
-code.
+The project add notion of Jenkins features, enhance the pre-installation with a script derived 
+from https://github.com/jenkinsci/docker/blob/master/README.md#preinstalling-plugins. 
+This script is installing plugins and groovy files (install.groovy.d), so that when we install
+plugin, we can configure and maintain those plugins or Jenkins configuration from code.
 
 But there is some limitations in it:
 
@@ -69,13 +69,14 @@ Some of needs to cover:
     lock file to download and install files in Jenkins, so that Jenkins has all plugins already up to date but 
     respecting any rules declared in the code.
 
+6. Export updates list in various format (json, templates)
+
 ## Development phases
 
-Identified in 5 steps to answer needs described above.
+As of now, jplugins is stable with all features listed above.
 
-We are in step 5 - Read Lock file, download/copy to Jenkins home directories.
-
-You can contribute to the project. Follow the usual Issues/Pull Request mechanism
+If this project answer to your needs but want to enhance it, feel free to contribute to it.
+Follow the usual Issues/Pull Request mechanism
 
 ## Build and develop
 
@@ -130,5 +131,50 @@ NOTE2: To use docker go, we load a build environment `source build_env.sh` or `b
     1480 plugins loaded.
     83 plugins installed.
     ```
+
+- How to lock versions to install?
+
+    This will create a jplugins.lock which will be used by `jplugins install`
+
+    ```bash
+    jplugins init
+    ```
+
+- How to check and export updates list?
+
+    This example uses a lock file which was generated with `jplugins init`
+
+    ```bash
+    jplugins check-updates --use-lock-file --export-result
+    ```
+
+    This creates an `updates.json`.
+
+    If you want a custom export, you can use `--export-template`. Templates mechanism is built on top of [GO text/template module](https://golang.org/pkg/text/template/)
+
+    ```bash
+    jplugins check-updates --use-lock-file --export-result --export-template=jplugins-msteams.tmpl
+    ```
+
+    where jplugins-msteams.tmpl has:
+
+    ```yaml
+    [
+    {{ range . }}\
+        {
+            "name": "{{ .Name }}",
+            "value": "updated from {{ .OldVersion }} to {{ .NewVersion }}",
+        },
+    {{ end}}\
+    ]
+    ```
+
+    Data structure used by the GO template mechanism:
+
+  - Array of plugins identified as updatable:
+    - Name: Plugin short name
+    - OldVersion: Old plugin version
+    - NewVersion: New plugin version
+    - Title: plugin title
 
 Forj team

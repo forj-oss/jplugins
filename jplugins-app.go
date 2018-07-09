@@ -50,10 +50,7 @@ func (a *jPluginsApp) init() {
 	a.listInstalled.jenkinsHomePath = a.listInstalled.cmd.Flag("jenkins-home", "Where Jenkins is installed.").Default(defaultJenkinsHome).String()
 	a.listInstalled.preInstalled = a.listInstalled.cmd.Flag("save-pre-installed", "To create the jplugins-preinstalled.lst instead displaying.").Bool()
 
-	a.checkVersions.cmd = a.app.Command("check-updates", "Display Jenkins plugins which has updates available from existing Jenkins installation.")
-	a.checkVersions.jenkinsHomePath = a.checkVersions.cmd.Flag("jenkins-home", "Where Jenkins is installed.").Default(defaultJenkinsHome).String()
-	a.checkVersions.usePreInstalled = a.checkVersions.cmd.Flag("use-pre-installed", "To use pre-installed list instead of jenkins plugins directory.").Bool()
-	a.checkVersions.preInstalledPath = a.checkVersions.cmd.Flag("pre-installed-path", "Path to the pre-installed.lst file.").Default(defaultJenkinsHome).String()
+	a.checkVersions.init()
 
 	a.initCmd.cmd = a.app.Command("init", "Initialize the 'jplugins.lock' from pre-installed plugins (jplugins-preinstalled.lst).")
 	a.initCmd.preInstalledPath = a.initCmd.cmd.Flag("pre-installed-path", "Path to the pre-installed.lst file.").Default(".").String()
