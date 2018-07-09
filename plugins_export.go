@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"strings"
+	"text/template"
 
 	"github.com/forj-oss/forjj-modules/trace"
 )
@@ -33,17 +36,23 @@ func newPluginsExport(exportFile, templateFile string, size int) (ret *pluginsEx
 	return
 }
 
-func (e *pluginsExport) doItOn(list *pluginsStatus) {
+func (e *pluginsExport) doItOn(list *pluginsStatus) (err error) {
 	e.plugins = list
+	e.buildList()
+
 	if e.templateFile == "" {
-		e.doExportJSON()
+		err = e.doExportJSON()
 	} else {
-		e.doExportTemplate()
+		err = e.doExportTemplate()
+	}
+	if err != nil {
+		return
 	}
 	fmt.Printf("\nFound %d plugin(s) updates.\n", len(e.json))
+	return
 }
 
-func (e *pluginsExport) doExportJSON() {
+func (e *pluginsExport) buildList() {
 	e.plugins.pluginsStatus = make(map[string]*pluginsStatusDetails)
 
 	pluginsList, _ := e.plugins.sortPlugins()
@@ -61,20 +70,50 @@ func (e *pluginsExport) doExportJSON() {
 		}
 		e.json = append(e.json, plugin)
 	}
-
-	if jsonData, err := json.MarshalIndent(e.json, "", "  "); err != nil {
-		gotrace.Error("Unable to encode in JSON. %s", err)
-		return
-	} else {
-		err = ioutil.WriteFile(e.exportFile, jsonData, 0644)
-		if err != nil {
-			gotrace.Error("Unable to save %s. %s", e.exportFile, err)
-			return
-		}
-		gotrace.Info("'%s' exported and saved.", e.exportFile)
-	}
 }
 
-func (e *pluginsExport) doExportTemplate() {
+func (e *pluginsExport) doExportJSON() error {
+	jsonData, err := json.MarshalIndent(e.json, "", "  ")
+	if err != nil {
+		return fmt.Errorf("Unable to encode in JSON. %s", err)
+	}
+	err = ioutil.WriteFile(e.exportFile, jsonData, 0644)
+	if err != nil {
+		return fmt.Errorf("Unable to save %s. %s", e.exportFile, err)
 
+	}
+	gotrace.Info("'%s' exported and saved.", e.exportFile)
+	return nil
+}
+
+func (e *pluginsExport) doExportTemplate() error {
+	tmplData, err := ioutil.ReadFile(e.templateFile)
+	if err != nil {
+		return fmt.Errorf("'%s' unreadable. %s", e.templateFile, err)
+	}
+
+	var exportFile *os.File
+	exportFile, err = os.Create(e.exportFile)
+	if err != nil {
+		return fmt.Errorf("'%s' unreadable. %s", e.templateFile, err)
+
+	}
+	defer exportFile.Close()
+
+	tmpl := template.New("export template")
+
+	_, err = tmpl.Parse(strings.Replace(string(tmplData), "\\\n", "", -1))
+	if err != nil {
+		return fmt.Errorf("template '%s' has errors. %s", e.templateFile, err)
+
+	}
+
+	err = tmpl.Execute(exportFile, &e.json)
+	if err != nil {
+		return fmt.Errorf("template execution '%s' has errors. %s", e.templateFile, err)
+
+	}
+
+	gotrace.Info("'%s' exported and saved from template '%s'.", e.exportFile, e.templateFile)
+	return nil
 }

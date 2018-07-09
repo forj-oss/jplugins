@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"path"
 
 	"github.com/alecthomas/kingpin"
@@ -62,7 +63,9 @@ func (c *cmdCheckVersions) doCheckInstalled() {
 		updates.displayUpdates()
 	} else {
 		export := newPluginsExport(*c.exportPath, *c.exportTemplate, len(updates.plugins))
-		export.doItOn(updates)
+		if err := export.doItOn(updates); err != nil {
+			log.Fatalf("Unable to export. %s", err)
+		}
 	}
 	fmt.Println(len(repo.Plugins), "plugins/groovies loaded.")
 	fmt.Println(len(App.installedElements), "plugins/groovies installed.")
