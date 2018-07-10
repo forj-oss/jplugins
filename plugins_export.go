@@ -100,7 +100,11 @@ func (e *pluginsExport) doExportTemplate() error {
 	}
 	defer exportFile.Close()
 
-	tmpl := template.New("export template")
+	tmpl := template.New("export template").Funcs(template.FuncMap{
+		"isLast": func(index, length int) bool {
+			return (index+1 >= length)
+		},
+	})
 
 	_, err = tmpl.Parse(strings.Replace(string(tmplData), "\\\n", "", -1))
 	if err != nil {
