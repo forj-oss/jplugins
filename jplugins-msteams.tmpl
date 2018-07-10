@@ -1,8 +1,8 @@
 [
-{{ range . }}\
+{{ $length := len . }}{{ range $index, $item := . }}\
     {
-        "name": "{{ .Name }}",
-        "value": "updated from {{ .OldVersion }} to {{ .NewVersion }}",
-    },
+        "name": "{{ $item.Name }}",
+        "value": "updated from {{ $item.OldVersion }} to {{ $item.NewVersion }}",
+    }{{ if not (isLast $index $length) }},{{ end }}
 {{ end}}\
 ]
