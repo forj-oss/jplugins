@@ -172,6 +172,9 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 	iCountNew := 0
 	for _, title := range pluginsList {
 		plugin := s.pluginsStatus[title]
+		if plugin == nil {
+			continue
+		}
 		latestTag := " "
 		newTag := " "
 		if plugin.latest {
@@ -431,7 +434,11 @@ func (s *pluginsStatus) checkMinDep() (_ bool) {
 func (s *pluginsStatus) sortPlugins() (pluginsList []string, maxTitle int) {
 	pluginsList = make([]string, len(s.plugins))
 	iCount := 0
-	for _, plugin := range s.plugins {
+	for pluginName, plugin := range s.plugins {
+		if plugin == nil {
+			gotrace.Error("Internal issue: Unable to find a valid plugin called '%s'.", pluginName)
+			continue
+		}
 		pluginsList[iCount] = plugin.title
 		s.pluginsStatus[plugin.title] = plugin
 		if val := len(plugin.title) + len(plugin.name); val > maxTitle {
