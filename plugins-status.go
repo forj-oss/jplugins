@@ -86,8 +86,17 @@ func (s *pluginsStatus) compare() {
 			s.obsolete(plugin)
 			continue
 		}
-		if plugin.Version != refPlugin.Version {
-			s.addPlugin(plugin.Version, refPlugin)
+
+		if curVer, err := plugin.GetVersion(); err != nil {
+			gotrace.Error("Invalid manifest version for `%s`", name)
+			continue
+		} else if latestVer, errLatest := refPlugin.GetVersion(); errLatest != nil {
+			gotrace.Error("Invalid latest version for `%s`", name)
+			continue
+		} else {
+			if curVer.Get().LessThan(latestVer.Get()) {
+				s.addPlugin(plugin.Version, refPlugin)
+			}
 		}
 
 		for _, dep := range refPlugin.Dependencies {

@@ -102,3 +102,8 @@ func (p *repositoryPlugin) DetermineVersion(versionConstraints map[string]govers
 	}
 	return
 }
+
+func (p *repositoryPlugin) GetVersion() (ret versionStruct, err error) {
+	err = ret.Set(p.Version)
+	return
+}
