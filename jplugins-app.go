@@ -194,7 +194,7 @@ func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 	}
 
 	var fileRE, manifestRE *regexp.Regexp
-	fileREDefine := `^(.*)\.[jh]pi*$`
+	fileREDefine := `^(.*)(\.[jh]pi)$`
 	manifestREDefine := `([\w-]*: )(.*)\n`
 
 	if re, err := regexp.Compile(fileREDefine); err != nil {
@@ -219,6 +219,7 @@ func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 		if fileMatch := fileRE.FindAllStringSubmatch(fEntry.Name(), -1); fileMatch != nil {
 			pluginFileName := fileMatch[0][0]
 			pluginName := fileMatch[0][1]
+			pluginExt := fileMatch[0][2]
 
 			if pluginFileName != "" && pluginName == "" {
 				gotrace.Error("Invalid file '%s'. Ignored.", pluginFileName)
@@ -230,7 +231,7 @@ func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 			tmpExtract := false
 			packagePath := path.Join(pluginsPath, pluginName)
 			if _, err := os.Stat(pluginMetafile); err != nil && os.IsNotExist(err) {
-				if _, s := utils.RunCmdOutput("unzip", "-q", packagePath+".hpi", "META-INF/MANIFEST.MF", "-d", packagePath); s != 0 {
+				if _, s := utils.RunCmdOutput("unzip", "-q", packagePath+pluginExt, "META-INF/MANIFEST.MF", "-d", packagePath); s != 0 {
 					gotrace.Error("Unable to extract MANIFEST.MF from plugin package %s", pluginName)
 					continue
 				}
