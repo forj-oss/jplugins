@@ -13,3 +13,8 @@ type elementManifest struct {
 	elementType    string // plugin or groovy
 	commitID       string // Commit ID for groovy files
 }
+
+func (e *elementManifest)GetVersion() (ret versionStruct, err error){
+	err = ret.Set(e.Version)
+	return
+}
