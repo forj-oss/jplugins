@@ -67,7 +67,7 @@ func (c *cmdInstall) doInstall() {
 	}
 
 	// Load the lock file in App.installedPlugins
-	if !App.readFromSimpleFormat(*c.lockFile) {
+	if !App.readFromSimpleFormat("", *c.lockFile) {
 		os.Exit(1)
 	}
 
