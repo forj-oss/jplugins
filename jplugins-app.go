@@ -10,8 +10,12 @@ import (
 	"sort"
 	"strings"
 
+	"jplugins/utils"
+	"jplugins/simplefile"
+
 	git "github.com/forj-oss/go-git"
-	"github.com/forj-oss/utils"
+
+	forjjutils "github.com/forj-oss/utils"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/forj-oss/forjj-modules/trace"
@@ -67,43 +71,21 @@ func (a *jPluginsApp) init() {
 	})
 }
 
-func (a *jPluginsApp) writeLockFile(lockFile string, lockData *pluginsStatus) (_ bool) {
+func (a *jPluginsApp) writeLockFile(lockFileName string, lockData *pluginsStatus) (_ bool) {
 
-	pluginsList := make([]string, len(lockData.plugins))
+	lockFile := simplefile.NewSimpleFile(lockFileName, 3)
 
-	iCount := 0
-	for name := range lockData.plugins {
-		pluginsList[iCount] = name
-		iCount++
+	for name, plugin := range lockData.plugins {
+		lockFile.Add(1, "plugin", name, plugin.newVersion.String())
+	}
+	for name := range lockData.groovies {
+		lockFile.Add(1, "groovy", name)
 	}
 
-	sort.Strings(pluginsList)
-
-	fd, err := os.OpenFile(lockFile, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
+	err := lockFile.WriteSimpleSortedFile(":")
 	if err != nil {
 		gotrace.Error("Unable to write '%s'. %s", lockFileName, err)
 		return
-	}
-	defer fd.Close()
-
-	for _, name := range pluginsList {
-		plugin := lockData.plugins[name]
-		fmt.Fprintf(fd, "plugin:%s:%s\n", name, plugin.newVersion)
-	}
-
-	pluginsList = make([]string, len(lockData.groovies))
-
-	iCount = 0
-	for name := range lockData.groovies {
-		pluginsList[iCount] = name
-		iCount++
-	}
-
-	sort.Strings(pluginsList)
-
-	for _, name := range pluginsList {
-		groovy := lockData.groovies[name]
-		fmt.Fprintf(fd, "groovy:%s:%s\n", name, groovy.newCommit)
 	}
 
 	gotrace.Info("%s written\n", lockFileName)
@@ -176,13 +158,7 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 
 // checkJenkinsHome verify if the path given exist or not
 func (a *jPluginsApp) checkJenkinsHome(jenkinsHomePath string) (_ bool) {
-	pluginsPath := path.Join(jenkinsHomePath, jenkinsHomePluginsPath)
-	if info, err := os.Stat(pluginsPath) ; err != nil {
-		return
-	} else if !info.IsDir() {
-		return
-	}
-	return true
+	return utils.CheckPath(path.Join(jenkinsHomePath, jenkinsHomePluginsPath))
 }
 
 // readFromJenkins read manifest of each plugins and store information in a.installedPlugins
@@ -236,7 +212,7 @@ func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 			tmpExtract := false
 			packagePath := path.Join(pluginsPath, pluginName)
 			if _, err := os.Stat(pluginMetafile); err != nil && os.IsNotExist(err) {
-				if _, s := utils.RunCmdOutput("unzip", "-q", packagePath+pluginExt, "META-INF/MANIFEST.MF", "-d", packagePath); s != 0 {
+				if _, s := forjjutils.RunCmdOutput("unzip", "-q", packagePath+pluginExt, "META-INF/MANIFEST.MF", "-d", packagePath); s != 0 {
 					gotrace.Error("Unable to extract MANIFEST.MF from plugin package %s", pluginName)
 					continue
 				}
@@ -278,13 +254,7 @@ func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 
 // checkSimpleFormatFile simply verify if the file exist.
 func (a *jPluginsApp) checkSimpleFormatFile(filepath, file string) (_ bool) {
-	simpleFile := path.Join(filepath, file)
-	if info, err := os.Stat(simpleFile) ; err != nil {
-		return
-	} else if info.IsDir() {
-		return
-	}
-	return true
+	return utils.CheckFile(filepath, file)
 }
 
 // readFromSimpleFormat read a simple description file for plugins or groovies.
