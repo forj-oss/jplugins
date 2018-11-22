@@ -52,13 +52,7 @@ func (a *jPluginsApp) init() {
 
 	a.checkVersions.init()
 
-	a.initCmd.cmd = a.app.Command("init", "Initialize the 'jplugins.lock' from pre-installed plugins (jplugins-preinstalled.lst).")
-	a.initCmd.preInstalledPath = a.initCmd.cmd.Flag("pre-installed-path", "Path to the pre-installed.lst file.").Default(".").String()
-	a.initCmd.sourceFile = a.initCmd.cmd.Flag("feature-file", "Full path to a feature file.").Default(featureFileName).String()
-	a.initCmd.lockFile = a.initCmd.cmd.Flag("lock-file", "Full path to the lock file.").Default(lockFileName).String()
-	a.initCmd.featureRepoPath = a.initCmd.cmd.Flag("features-repo-path", "Path to a feature repository. "+
-		"By default, jplugins store the repo clone in jplugins cache directory.").Default(defaultFeaturesRepoPath).String()
-	a.initCmd.featureRepoURL = a.initCmd.cmd.Flag("features-repo-url", "URL to the feature repository. NOT IMPLEMENTED").Default(defaultFeaturesRepoURL).String()
+	a.initCmd.init()
 
 	a.installCmd.cmd = a.app.Command("install", "Install plugins and groovies defined by the 'jplugins.lock'.")
 	a.installCmd.lockFile = a.installCmd.cmd.Flag("lock-file", "Full path to the lock file.").Default(lockFileName).String()
@@ -180,6 +174,17 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 	return true
 }
 
+// checkJenkinsHome verify if the path given exist or not
+func (a *jPluginsApp) checkJenkinsHome(jenkinsHomePath string) (_ bool) {
+	pluginsPath := path.Join(jenkinsHomePath, jenkinsHomePluginsPath)
+	if info, err := os.Stat(pluginsPath) ; err != nil {
+		return
+	} else if !info.IsDir() {
+		return
+	}
+	return true
+}
+
 // readFromJenkins read manifest of each plugins and store information in a.installedPlugins
 func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 	pluginsPath := path.Join(jenkinsHomePath, jenkinsHomePluginsPath)
@@ -271,9 +276,20 @@ func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
 	return true
 }
 
+// checkSimpleFormatFile simply verify if the file exist.
+func (a *jPluginsApp) checkSimpleFormatFile(filepath, file string) (_ bool) {
+	simpleFile := path.Join(filepath, file)
+	if info, err := os.Stat(simpleFile) ; err != nil {
+		return
+	} else if info.IsDir() {
+		return
+	}
+	return true
+}
+
 // readFromSimpleFormat read a simple description file for plugins or groovies.
-func (a *jPluginsApp) readFromSimpleFormat(file string) (_ bool) {
-	fd, err := os.Open(file)
+func (a *jPluginsApp) readFromSimpleFormat(filepath, file string) (_ bool) {
+	fd, err := os.Open(path.Join(filepath, file))
 	if err != nil {
 		gotrace.Error("Unable to open file '%s'. %s", file, err)
 		return

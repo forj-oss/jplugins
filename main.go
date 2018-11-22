@@ -18,8 +18,8 @@ func main() {
 		App.listInstalled.doListInstalled()
 	case App.checkVersions.cmd.FullCommand():
 		App.checkVersions.doCheckInstalled()
-	case App.initCmd.cmd.FullCommand():
-		App.initCmd.doInit()
+	case App.initCmd.lockfile.cmd.FullCommand():
+		App.initCmd.lockfile.DoInitLockfile()
 		/*	case App.update.cmd.FullCommand():
 			App.doUpdate()*/
 	case App.installCmd.cmd.FullCommand():
