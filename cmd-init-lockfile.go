@@ -4,6 +4,8 @@ import (
 	"os"
 
 	"github.com/alecthomas/kingpin"
+
+	"jplugins/utils"
 )
 
 type cmdInitLockfile struct {
@@ -29,12 +31,14 @@ func (c *cmdInitLockfile) init(parent *kingpin.CmdClause) {
 func (c *cmdInitLockfile) DoInitLockfile() {
 	App.repository = NewRepository()
 	repo := App.repository
-	if !repo.loadFrom() {
+	if !repo.loadFromURL() {
 		os.Exit(1)
 	}
 
-	if !App.readFromSimpleFormat(*c.preInstalledPath, preInstalledFileName) {
-		os.Exit(1)
+	if utils.CheckFile(*c.preInstalledPath, preInstalledFileName) {
+		if !App.readFromSimpleFormat(*c.preInstalledPath, preInstalledFileName) {
+			os.Exit(1)
+		}
 	}
 
 	lockData := newPluginsStatus(App.installedElements, repo)

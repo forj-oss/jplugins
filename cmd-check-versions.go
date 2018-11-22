@@ -54,13 +54,19 @@ func (c *cmdCheckVersions) init() {
 func (c *cmdCheckVersions) doCheckInstalled() {
 	App.repository = NewRepository()
 	repo := App.repository
-	if !repo.loadFrom() {
+	if !repo.loadFromURL() {
 		return
 	}
 
 	if !c.selectSource() {
 		return
 	}
+
+	if App.checkSimpleFormatFile(*c.pluginsFeaturePath, *c.pluginsFeatureFile) {
+		gotrace.Info("Using detected feature file '%s/%s'", *c.pluginsFeaturePath, *c.pluginsFeatureFile)
+		App.readFromSimpleFormat(*c.pluginsFeaturePath, *c.pluginsFeatureFile)
+	}
+
 
 	updates := repo.compare(App.installedElements)
 	if !*c.export {
@@ -77,24 +83,21 @@ func (c *cmdCheckVersions) doCheckInstalled() {
 }
 
 func (c *cmdCheckVersions) selectSource() (_ bool) {
-
-	if !*c.usePluginLock && !*c.usePreInstalled && !*c.usePluginFeature {
+	if !*c.usePluginLock && !*c.usePreInstalled {
 		// load from jenkins
 		if App.checkJenkinsHome(*c.jenkinsHomePath) {
 			gotrace.Info("Using detected Jenkins home path '%s'", *c.jenkinsHomePath)
 			return App.readFromJenkins(*c.jenkinsHomePath)
 		}
+		// Load from lock file
 		if App.checkSimpleFormatFile(*c.pluginsLock, lockFileName) {
 			gotrace.Info("Using detected lockfile '%s/%s'", *c.pluginsLock, lockFileName)
 			return App.readFromSimpleFormat(*c.pluginsLock, lockFileName)
 		}
+		// Load from pre-installed
 		if App.checkSimpleFormatFile(*c.preInstalledPath, preInstalledFileName) {
 			gotrace.Info("Using detected pre-installed file '%s/%s'", *c.preInstalledPath, preInstalledFileName)
 			return App.readFromSimpleFormat(*c.preInstalledPath, preInstalledFileName)
-		}
-		if App.checkSimpleFormatFile(*c.pluginsFeaturePath, *c.pluginsFeatureFile) {
-			gotrace.Info("Using detected feature file '%s/%s'", *c.pluginsFeaturePath, *c.pluginsFeatureFile)
-			return App.readFromSimpleFormat(*c.pluginsFeaturePath, *c.pluginsFeatureFile)
 		}
 		return
 	}
@@ -104,17 +107,13 @@ func (c *cmdCheckVersions) selectSource() (_ bool) {
 			return
 		}
 
-	} else if *c.usePreInstalled {
+	} else {
 		gotrace.Info("Forcelly using pre-installed file '%s/%s'", *c.preInstalledPath, preInstalledFileName)
 		if !App.readFromSimpleFormat(*c.preInstalledPath, preInstalledFileName) {
 			return
 		}
 
-	} else {
-		gotrace.Info("Forcelly using feature file '%s/%s'", *c.pluginsFeaturePath, *c.pluginsFeatureFile)
-		if !App.readFromSimpleFormat(*c.pluginsFeaturePath, *c.pluginsFeatureFile) {
-			return
-		}
 	}
+
 	return true
 }

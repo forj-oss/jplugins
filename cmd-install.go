@@ -62,7 +62,7 @@ func (c *cmdInstall) doInstall() {
 
 	App.repository = NewRepository()
 	repo := App.repository
-	if !repo.loadFrom() {
+	if !repo.loadFromURL() {
 		os.Exit(1)
 	}
 

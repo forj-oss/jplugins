@@ -48,8 +48,8 @@ func NewRepository() (ret *repository) {
 
 // TODO: Be able to change default repository values
 
-// loadFrom read an URL file containing the Jenkins updates repository data as json.
-func (r *repository) loadFrom() (_ bool) {
+// loadFromURL read an URL file containing the Jenkins updates repository data as json.
+func (r *repository) loadFromURL() (_ bool) {
 	repoData, err := utils.ReadDocumentFrom(r.repoURLs, r.repoReplace, r.repoSubPaths, r.repoFile, "")
 	if err != nil {
 		gotrace.Error("Unable to load '%s'. %s", r.repoFile, err)
