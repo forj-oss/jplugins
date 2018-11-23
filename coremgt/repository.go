@@ -1,4 +1,4 @@
-package main
+package coremgt
 
 import (
 	"encoding/json"
@@ -9,8 +9,8 @@ import (
 	"github.com/forj-oss/forjj-modules/trace"
 )
 
-type repository struct {
-	Plugins            map[string]*repositoryPlugin
+type Repository struct {
+	Plugins            map[string]*RepositoryPlugin
 	loaded             bool
 	repoURLs           []*url.URL
 	repoReplace        []string
@@ -20,7 +20,7 @@ type repository struct {
 	repoPluginSubPaths []string
 }
 
-type repositoryDependency struct {
+type RepositoryDependency struct {
 	Name      string
 	Optionnal bool
 	Version   string
@@ -33,8 +33,8 @@ const (
 	JenkinsPluginRepo  = "download/plugins"
 )
 
-func NewRepository() (ret *repository) {
-	ret = new(repository)
+func NewRepository() (ret *Repository) {
+	ret = new(Repository)
 	ret.repoSubPaths = []string{JenkinsRepoVersion}
 	ret.repoURLs = make([]*url.URL, 1)
 	ret.repoURLs[0], _ = url.Parse(JenkinsRepoURL)
@@ -49,7 +49,7 @@ func NewRepository() (ret *repository) {
 // TODO: Be able to change default repository values
 
 // loadFromURL read an URL file containing the Jenkins updates repository data as json.
-func (r *repository) loadFromURL() (_ bool) {
+func (r *Repository) LoadFromURL() (_ bool) {
 	repoData, err := utils.ReadDocumentFrom(r.repoURLs, r.repoReplace, r.repoSubPaths, r.repoFile, "")
 	if err != nil {
 		gotrace.Error("Unable to load '%s'. %s", r.repoFile, err)
@@ -62,24 +62,24 @@ func (r *repository) loadFromURL() (_ bool) {
 		return
 	}
 
-	r.setDefaults()
+	r.SetDefaults()
 
 	return true
 }
 
-func (r *repository) compare(plugins plugins) (updates *pluginsStatus) {
-	updates = newPluginsStatus(plugins, r)
+func (r *Repository) Compare(elements *Elements) (updates *PluginsStatus) {
+	updates = NewPluginsStatus(elements, r)
 
-	updates.compare()
+	updates.Compare()
 	return
 }
 
-func (r *repository) get(name string) (plugin *repositoryPlugin, found bool) {
+func (r *Repository) Get(name string) (plugin *RepositoryPlugin, found bool) {
 	plugin, found = r.Plugins[name]
 	return
 }
 
-func (r *repository) setDefaults() {
+func (r *Repository) SetDefaults() {
 	for _, plugin := range r.Plugins {
 		plugin.ref = r
 	}

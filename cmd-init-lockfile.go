@@ -1,9 +1,11 @@
 package main
 
 import (
+	core "jplugins/coremgt"
 	"os"
 
 	"github.com/alecthomas/kingpin"
+	"github.com/forj-oss/forjj-modules/trace"
 
 	"jplugins/utils"
 )
@@ -29,25 +31,32 @@ func (c *cmdInitLockfile) init(parent *kingpin.CmdClause) {
 }
 
 func (c *cmdInitLockfile) DoInitLockfile() {
-	App.repository = NewRepository()
+	App.repository = core.NewRepository()
 	repo := App.repository
-	if !repo.loadFromURL() {
+	if !repo.LoadFromURL() {
 		os.Exit(1)
 	}
 
+	var elements *core.Elements
+
 	if utils.CheckFile(*c.preInstalledPath, preInstalledFileName) {
-		if !App.readFromSimpleFormat(*c.preInstalledPath, preInstalledFileName) {
+		if e, err := App.readFromSimpleFormat(*c.preInstalledPath, preInstalledFileName); err != nil {
+			gotrace.Error("%s", err)
 			os.Exit(1)
+		} else {
+			elements = e
 		}
 	}
 
-	lockData := newPluginsStatus(App.installedElements, repo)
+	lockData := core.NewPluginsStatus(elements, repo)
 
-	lockData.importInstalled(App.installedElements)
+	lockData.ImportInstalled(elements)
 
 	if !App.readFeatures(*c.featureRepoPath, *c.sourceFile, *c.featureRepoURL, lockData) {
 		os.Exit(1)
 	}
+
+	lockData.DisplayUpdates()
 
 	if !App.writeLockFile(*c.lockFile, lockData) {
 		os.Exit(1)

@@ -2,24 +2,20 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"jplugins/simplefile"
 	"os"
 	"path"
-	"regexp"
-	"sort"
 	"strings"
 
+	core "jplugins/coremgt"
 	"jplugins/utils"
-	"jplugins/simplefile"
 
 	git "github.com/forj-oss/go-git"
 
-	forjjutils "github.com/forj-oss/utils"
-
 	"github.com/alecthomas/kingpin"
 	"github.com/forj-oss/forjj-modules/trace"
-	yaml "gopkg.in/yaml.v2"
 )
 
 type jPluginsApp struct {
@@ -29,8 +25,10 @@ type jPluginsApp struct {
 	initCmd       cmdInit
 	installCmd    cmdInstall
 
-	installedElements plugins
-	repository        *repository
+	installedElements *core.Plugins
+	repository        *core.Repository
+
+	jenkinsHome *core.JenkinsHome
 }
 
 const (
@@ -46,6 +44,8 @@ const (
 var build_branch, build_commit, build_date, build_tag string
 
 func (a *jPluginsApp) init() {
+	gotrace.SetInfo()
+
 	a.app = kingpin.New("jplugins", "Jenkins plugins as Code management tool.")
 
 	a.setVersion()
@@ -71,20 +71,15 @@ func (a *jPluginsApp) init() {
 	})
 }
 
-func (a *jPluginsApp) writeLockFile(lockFileName string, lockData *pluginsStatus) (_ bool) {
+func (a *jPluginsApp) setJenkinsHome(jenkinsHomePath string) {
+	a.jenkinsHome = core.NewJenkinsHome(jenkinsHomePath)
+}
 
-	lockFile := simplefile.NewSimpleFile(lockFileName, 3)
+func (a *jPluginsApp) writeLockFile(lockFileName string, lockData *core.PluginsStatus) (_ bool) {
 
-	for name, plugin := range lockData.plugins {
-		lockFile.Add(1, "plugin", name, plugin.newVersion.String())
-	}
-	for name := range lockData.groovies {
-		lockFile.Add(1, "groovy", name)
-	}
-
-	err := lockFile.WriteSimpleSortedFile(":")
+	err := lockData.WriteSimple(lockFileName)
 	if err != nil {
-		gotrace.Error("Unable to write '%s'. %s", lockFileName, err)
+		gotrace.Error("Unable to save the lockfile. %s", err)
 		return
 	}
 
@@ -92,7 +87,7 @@ func (a *jPluginsApp) writeLockFile(lockFileName string, lockData *pluginsStatus
 	return true
 }
 
-func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, lockData *pluginsStatus) (_ bool) {
+func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, lockData *core.PluginsStatus) (_ bool) {
 	gotrace.Trace("Loading constraints...")
 	if gotrace.IsInfoMode() {
 		fmt.Printf("Reading %s\n--------\n", featureFileName)
@@ -104,10 +99,10 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 	}
 
 	if featurePath != defaultFeaturesRepoPath {
-		lockData.setLocal()
+		lockData.SetLocal()
 	}
-	lockData.setFeaturesPath(featurePath)
-	lockData.setFeaturesRepoURL(featureURL)
+	lockData.SetFeaturesPath(featurePath)
+	lockData.SetFeaturesRepoURL(featureURL)
 
 	bError := false
 	fileScan := bufio.NewScanner(fd)
@@ -116,16 +111,16 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 		if gotrace.IsInfoMode() {
 			fmt.Printf("== %s ==\n", line)
 		}
-		lockData.checkElement(line, func(ftype, name, version string) {
+		lockData.CheckElementLine(line, func(ftype, name, version string) {
 			switch ftype {
 			case "feature":
-				if err = lockData.checkFeature(name); err != nil {
+				if err = lockData.CheckFeature(name); err != nil {
 					gotrace.Error("%s", err)
 					bError = true
 				}
 			//case "groovy":
 			case "plugin":
-				if err := lockData.checkPlugin(name, version, nil); err != nil {
+				if err := lockData.CheckPlugin(name, version, nil); err != nil {
 					gotrace.Error("%s", err)
 					bError = true
 				}
@@ -145,111 +140,71 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 		fmt.Println("--------")
 	}
 	gotrace.Trace("Identifying version from constraints...")
-	lockData.definePluginsVersion()
+	lockData.DefinePluginsVersion()
 
-	if !lockData.checkMinDep() {
+	if !lockData.CheckMinDep() {
 		return
 	}
 
-	lockData.displayUpdates()
-
 	return true
+}
+
+// readFeaturesFromSimpleFormat will load a feature file and expand them to get a list of plugins/groovies/... (elements)
+func (a *jPluginsApp) readFeaturesFromSimpleFormat(featurePath, featureFile, featureURL string) (elements *core.Elements, err error) {
+	gotrace.Trace("Loading constraints...")
+
+	elements = core.NewElements()
+
+	if featurePath != defaultFeaturesRepoPath {
+		elements.SetLocal()
+	}
+	elements.SetFeaturesPath(featurePath)
+	elements.SetFeaturesRepoURL(featureURL)
+
+	feature := simplefile.NewSimpleFile(featureFile, 3)
+
+	bError := false
+	feature.Read(":", func(fields []string) (_ error) {
+		err := elements.Add(fields...)
+
+		if err != nil {
+			gotrace.Error("%s", err)
+			bError = true
+		}
+		return
+	})
+
+	if bError {
+		err = errors.New("Errors detected. Please review")
+		return
+	}
+
+	gotrace.Trace("Identifying version from constraints...")
+	//lockData.DefinePluginsVersion()
+
+	/*if !lockData.CheckMinDep() {
+		return
+	}*/
+
+	return
 }
 
 // checkJenkinsHome verify if the path given exist or not
-func (a *jPluginsApp) checkJenkinsHome(jenkinsHomePath string) (_ bool) {
-	return utils.CheckPath(path.Join(jenkinsHomePath, jenkinsHomePluginsPath))
+func (a *jPluginsApp) checkJenkinsHome() (_ bool) {
+	if a.jenkinsHome == nil {
+		return
+	}
+
+	return a.jenkinsHome.IsValid()
 }
 
 // readFromJenkins read manifest of each plugins and store information in a.installedPlugins
-func (a *jPluginsApp) readFromJenkins(jenkinsHomePath string) (_ bool) {
-	pluginsPath := path.Join(jenkinsHomePath, jenkinsHomePluginsPath)
-
-	a.installedElements = make(plugins)
-
-	fEntries, err := ioutil.ReadDir(pluginsPath)
-
-	if err != nil {
-		gotrace.Error("Invalid Jenkins home '%s'. %s", pluginsPath, err)
+func (a *jPluginsApp) readFromJenkins() (elements *core.Elements, _ error) {
+	if a.jenkinsHome == nil {
 		return
 	}
 
-	var fileRE, manifestRE *regexp.Regexp
-	fileREDefine := `^(.*)(\.[jh]pi)$`
-	manifestREDefine := `([\w-]*: )(.*)\n`
-
-	if re, err := regexp.Compile(fileREDefine); err != nil {
-		gotrace.Error("Internal error. Regex '%s': %s", fileREDefine, err)
-		return
-	} else {
-		fileRE = re
-
-	}
-	if re, err := regexp.Compile(manifestREDefine); err != nil {
-		gotrace.Error("Internal error. Regex '%s': %s", fileREDefine, err)
-		return
-	} else {
-		manifestRE = re
-	}
-
-	for _, fEntry := range fEntries {
-		if fEntry.IsDir() {
-			continue
-		}
-
-		if fileMatch := fileRE.FindAllStringSubmatch(fEntry.Name(), -1); fileMatch != nil {
-			pluginFileName := fileMatch[0][0]
-			pluginName := fileMatch[0][1]
-			pluginExt := fileMatch[0][2]
-
-			if pluginFileName != "" && pluginName == "" {
-				gotrace.Error("Invalid file '%s'. Ignored.", pluginFileName)
-				continue
-			}
-
-			pluginMetafile := path.Join(pluginsPath, pluginName, "META-INF", "MANIFEST.MF")
-
-			tmpExtract := false
-			packagePath := path.Join(pluginsPath, pluginName)
-			if _, err := os.Stat(pluginMetafile); err != nil && os.IsNotExist(err) {
-				if _, s := forjjutils.RunCmdOutput("unzip", "-q", packagePath+pluginExt, "META-INF/MANIFEST.MF", "-d", packagePath); s != 0 {
-					gotrace.Error("Unable to extract MANIFEST.MF from plugin package %s", pluginName)
-					continue
-				}
-				tmpExtract = true
-			}
-
-			var manifest *elementManifest
-
-			if d, err := ioutil.ReadFile(pluginMetafile); err != nil {
-				gotrace.Error("Unable to read file '%s'. %s. Ignored", pluginMetafile, err)
-				continue
-			} else {
-				// Remove DOS format if exist
-				data := strings.Replace(string(d), "\r", "", -1)
-				// and remove new lines ('\n ')
-				data = strings.Replace(data, "\n ", "", -1)
-				// and escape "
-				data = strings.Replace(data, "\"", "\\\"", -1)
-				// and embrace value part with "
-				data = manifestRE.ReplaceAllString(data, `$1"$2"`+"\n")
-
-				manifest = new(elementManifest)
-				if err := yaml.Unmarshal([]byte(data), &manifest); err != nil {
-					gotrace.Error("Unable to read file '%s' as yaml. %s. Ignored", pluginMetafile, err)
-					fmt.Print(data)
-					continue
-				}
-				manifest.elementType = "plugin"
-			}
-			if tmpExtract {
-				os.RemoveAll(packagePath)
-				tmpExtract = false
-			}
-			a.installedElements[manifest.Name] = manifest
-		}
-	}
-	return true
+	return a.jenkinsHome.GetPlugins()
 }
 
 // checkSimpleFormatFile simply verify if the file exist.
@@ -258,83 +213,44 @@ func (a *jPluginsApp) checkSimpleFormatFile(filepath, file string) (_ bool) {
 }
 
 // readFromSimpleFormat read a simple description file for plugins or groovies.
-func (a *jPluginsApp) readFromSimpleFormat(filepath, file string) (_ bool) {
-	fd, err := os.Open(path.Join(filepath, file))
+func (a *jPluginsApp) readFromSimpleFormat(filepath, fileName string) (elements *core.Elements, _ error) {
+	file := path.Join(filepath, fileName)
+	elements = core.NewElements()
+
+	elements.AddSupport("plugin", "groovy")
+
+	err := elements.Read(file, 3)
 	if err != nil {
-		gotrace.Error("Unable to open file '%s'. %s", file, err)
+		return nil, fmt.Errorf("Unable to open file simple file format'%s'. %s", file, err)
+	}
+
+	return
+}
+
+// printOutVersion display the list of plugins given
+func (a *jPluginsApp) printOutVersion(plugins *core.Elements) (_ bool) {
+	if plugins == nil {
 		return
 	}
 
-	defer fd.Close()
+	plugins.PrintOut(func(element core.Element) {
+		version, _ := element.GetVersion()
+		fmt.Printf("%s: %s\n", element.Name(), version)
 
-	scanFile := bufio.NewScanner(fd)
-	a.installedElements = make(plugins)
+	})
 
-	for scanFile.Scan() {
-		line := scanFile.Text()
-		pluginData := new(elementManifest)
-		pluginRecord := strings.Split(line, ":")
-		if pluginRecord[0] != "plugin" && pluginRecord[0] != "groovy" {
-			continue
-		}
-		pluginData.elementType = pluginRecord[0]
-		pluginData.Name = pluginRecord[1]
-		if pluginRecord[0] == "plugin" {
-			pluginData.Version = pluginRecord[2]
-			if refPlugin, found := a.repository.Plugins[pluginData.Name]; !found {
-				gotrace.Warning("plugin '%s' is not recognized. Ignored.")
-			} else {
-				pluginData.LongName = refPlugin.Title
-				pluginData.Description = refPlugin.Description
-			}
-		} else {
-			pluginData.commitID = pluginRecord[2]
-		}
-
-		a.installedElements[pluginData.Name] = pluginData
-	}
+	fmt.Printf("\n%d plugin(s)\n", plugins.Length())
 	return true
 }
 
-func (a *jPluginsApp) printOutVersion(plugins plugins) (_ bool) {
-	if a.installedElements == nil {
+// saveVersionAsPreInstalled store the list of plugins in the jenkinsHomePath
+func (a *jPluginsApp) saveVersionAsPreInstalled(jenkinsHomePath string, plugins *core.Elements) (_ bool) {
+	if plugins == nil {
 		return
 	}
-
-	pluginsList := make([]string, len(plugins))
-
-	iCount := 0
-	for name := range plugins {
-		pluginsList[iCount] = name
-		iCount++
-	}
-
-	sort.Strings(pluginsList)
-
-	for _, name := range pluginsList {
-		fmt.Printf("%s: %s\n", name, plugins[name].Version)
-	}
-	fmt.Println(iCount, "plugin(s)")
-	return true
-}
-
-func (a *jPluginsApp) saveVersionAsPreInstalled(jenkinsHomePath string, plugins plugins) (_ bool) {
-	if a.installedElements == nil {
-		return
-	}
-
-	pluginsList := make([]string, len(plugins))
-
-	iCount := 0
-	for name := range plugins {
-		pluginsList[iCount] = name
-		iCount++
-	}
-
-	sort.Strings(pluginsList)
 
 	preInstalledFile := path.Join(jenkinsHomePath, preInstalledFileName)
-	piDescriptor, err := os.OpenFile(preInstalledFile, os.O_RDWR|os.O_CREATE, 0644)
+	piDescriptor, err := os.OpenFile(preInstalledFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 
 	if err != nil {
 		gotrace.Error("Unable to create '%s'. %s", preInstalledFile, err)
@@ -343,13 +259,16 @@ func (a *jPluginsApp) saveVersionAsPreInstalled(jenkinsHomePath string, plugins 
 
 	defer piDescriptor.Close()
 
-	for _, name := range pluginsList {
-		fmt.Fprintf(piDescriptor, "plugin:%s:%s\n", name, plugins[name].Version)
-	}
-	fmt.Printf("%d plugin(s) saved in '%s'\n", iCount, preInstalledFile)
+	plugins.PrintOut(func(element core.Element) {
+		version, _ := element.GetVersion()
+		fmt.Fprintf(piDescriptor, "plugin:%s:%s\n", element.Name(), version)
+	})
+
+	fmt.Printf("%d plugin(s) saved in '%s'\n", plugins.Length(), preInstalledFile)
 	return true
 }
 
+// setVersion define the current jplugins version.
 func (a *jPluginsApp) setVersion() {
 	var version string
 

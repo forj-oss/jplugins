@@ -1,4 +1,4 @@
-package main
+package coremgt
 
 import (
 	"fmt"
@@ -14,9 +14,9 @@ import (
 type pluginsStatusDetails struct {
 	name          string
 	title         string
-	oldVersion    versionStruct
-	newVersion    versionStruct
-	minDepVersion versionStruct
+	oldVersion    VersionStruct
+	newVersion    VersionStruct
+	minDepVersion VersionStruct
 	minDepName    string
 	latest        bool
 	rules         map[string]goversion.Constraints
@@ -31,14 +31,14 @@ func newPluginsStatusDetails() (ret *pluginsStatusDetails) {
 
 // setFromRef creates the version from reference and add current version as old.
 // newVersion is by default set to latest from ref.
-func (sd *pluginsStatusDetails) initFromRef(oldVersion string, plugin *repositoryPlugin) *pluginsStatusDetails {
+func (sd *pluginsStatusDetails) initFromRef(oldVersion VersionStruct, plugin *RepositoryPlugin) *pluginsStatusDetails {
 	if sd == nil {
 		return nil
 	}
 
 	sd.name = plugin.Name
 	sd.title = plugin.Title
-	version := versionStruct{}
+	version := VersionStruct{}
 	var err error
 
 	err = version.Set(plugin.Version)
@@ -48,13 +48,7 @@ func (sd *pluginsStatusDetails) initFromRef(oldVersion string, plugin *repositor
 	}
 
 	sd.newVersion = version
-
-	err = version.Set(oldVersion)
-	if err != nil {
-		gotrace.Error("New version '%s' invalid. %s", plugin.Version, err)
-		return nil
-	}
-	sd.oldVersion = version
+	sd.oldVersion = oldVersion
 
 	return sd
 }
@@ -72,7 +66,7 @@ func (sd *pluginsStatusDetails) setVersion(version string) *pluginsStatusDetails
 		return nil
 	}
 
-	newVersion := versionStruct{}
+	newVersion := VersionStruct{}
 	var err error
 
 	err = newVersion.Set(version)
@@ -89,7 +83,7 @@ func (sd *pluginsStatusDetails) setMinimumVersionDep(version string) {
 	if sd == nil {
 		return
 	}
-	depVersion := versionStruct{}
+	depVersion := VersionStruct{}
 	depVersion.Set(version)
 
 	if minVersion := sd.minDepVersion.Get(); minVersion == nil || minVersion.LessThan(depVersion.Get()) {
@@ -101,7 +95,7 @@ func (sd *pluginsStatusDetails) checkMinimumVersionDep(version string, parentPlu
 	if sd == nil {
 		return
 	}
-	depVersion := versionStruct{}
+	depVersion := VersionStruct{}
 	depVersion.Set(version)
 
 	if sd.newVersion.Get().LessThan(depVersion.Get()) {
@@ -124,25 +118,21 @@ func (sd *pluginsStatusDetails) addConstraint(constraintsGiven string) *pluginsS
 	return sd
 }
 
-func (sd *pluginsStatusDetails) initAsObsolete(plugin *elementManifest) *pluginsStatusDetails {
+func (sd *pluginsStatusDetails) initAsObsolete(element Element) *pluginsStatusDetails {
 	if sd == nil {
 		return nil
 	}
 
-	version := versionStruct{}
-	sd.newVersion = version
-
-	var err error
-
-	err = version.Set(plugin.Version)
+	version, err := element.GetVersion()
 	if err != nil {
-		gotrace.Error("New version '%s' invalid. %s", plugin.Version, err)
+		gotrace.Error("New version '%s' invalid. %s", version, err)
 		return nil
 	}
+	sd.newVersion = version
 
 	sd.oldVersion = version
-	sd.name = plugin.Name
-	sd.title = plugin.LongName
+	sd.name = element.Name()
+	sd.title = element.(*Plugin).LongName
 
 	return sd
 }

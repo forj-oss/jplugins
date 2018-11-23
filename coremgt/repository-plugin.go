@@ -1,4 +1,4 @@
-package main
+package coremgt
 
 import (
 	"fmt"
@@ -9,17 +9,17 @@ import (
 	goversion "github.com/hashicorp/go-version"
 )
 
-type repositoryPlugin struct {
-	Dependencies   []repositoryDependency
+type RepositoryPlugin struct {
+	Dependencies   []RepositoryDependency
 	Name           string
 	Version        string
 	Title          string
 	Description    string `json:"excerpt"`
-	versionHistory []versionStruct
-	ref            *repository
+	versionHistory []VersionStruct
+	ref            *Repository
 }
 
-func (p *repositoryPlugin) loadPluginVersionList() []versionStruct {
+func (p *RepositoryPlugin) loadPluginVersionList() []VersionStruct {
 
 	if p == nil {
 		return nil
@@ -39,10 +39,10 @@ func (p *repositoryPlugin) loadPluginVersionList() []versionStruct {
 	versionRE, _ := regexp.Compile(versionReString)
 	versionList := versionRE.FindAllStringSubmatch(string(pluginsVersions), -1)
 
-	versionHistory := make([]versionStruct, len(versionList))
+	versionHistory := make([]VersionStruct, len(versionList))
 	iCount := 0
 	for _, capturedVersion := range versionList {
-		version := versionStruct{}
+		version := VersionStruct{}
 		err := version.Set(capturedVersion[1])
 		if err != nil {
 			gotrace.Error("Invalid version string '%s' for plugin '%s'. %s. Ignored", capturedVersion[1], p.Name, err)
@@ -56,11 +56,12 @@ func (p *repositoryPlugin) loadPluginVersionList() []versionStruct {
 	return versionHistory
 }
 
-func (p *repositoryPlugin) DetermineVersion(versionConstraints map[string]goversion.Constraints) (version versionStruct, latest bool, err error) {
+// DetermineVersion select the appropriate version of a plugin depending on constraints.
+func (p *RepositoryPlugin) DetermineVersion(versionConstraints map[string]goversion.Constraints) (version VersionStruct, latest bool, err error) {
 	// Search from version history
-	version = versionStruct{}
+	version = VersionStruct{}
 	version.Set(p.Version)
-	var history []versionStruct
+	var history []VersionStruct
 	gotrace.Trace("Determining version for '%s'. %d constraints to verify", p.Name, len(versionConstraints))
 	latest = true
 	for _, constraints := range versionConstraints {
@@ -81,8 +82,8 @@ func (p *repositoryPlugin) DetermineVersion(versionConstraints map[string]govers
 		latest = false
 		// The history was loaded... So, check from each elements loaded.
 		if len(history) == 0 {
-			version = versionStruct{}
-			err = fmt.Errorf("%%s: No available versions match rule '%s'", p.Name, versionConstraints)
+			version = VersionStruct{}
+			err = fmt.Errorf("%s: No available versions match rule '%s'", p.Name, versionConstraints)
 			return
 		}
 		iCount := 1
@@ -103,7 +104,7 @@ func (p *repositoryPlugin) DetermineVersion(versionConstraints map[string]govers
 	return
 }
 
-func (p *repositoryPlugin) GetVersion() (ret versionStruct, err error) {
+func (p *RepositoryPlugin) GetVersion() (ret VersionStruct, err error) {
 	err = ret.Set(p.Version)
 	return
 }

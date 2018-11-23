@@ -2,12 +2,11 @@ package main
 
 import (
 	"fmt"
-	"jplugins/simplefile"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/forj-oss/forjj-modules/trace"
+	core "jplugins/coremgt"
 
 	"jplugins/utils"
 
@@ -35,9 +34,15 @@ func (c *cmdInitFeatures) init(parent *kingpin.CmdClause) {
 }
 
 func (c *cmdInitFeatures) DoInitFeatures() {
-	if App.checkJenkinsHome(*c.jenkinsHomePath) {
-		if !App.readFromJenkins(*c.jenkinsHomePath) {
+	App.setJenkinsHome(*c.jenkinsHomePath)
+
+	var elements *core.Elements
+	if App.checkJenkinsHome() {
+		if e, err := App.readFromJenkins() ; err != nil {
+			gotrace.Error("%s", err)
 			os.Exit(1)
+		} else {
+			elements = e
 		}
 	}
 	if !utils.CheckPath(*c.pluginsFeaturePath) {
@@ -45,7 +50,7 @@ func (c *cmdInitFeatures) DoInitFeatures() {
 		os.Exit(1)
 	}
 
-	err := c.saveFeatures()
+	err := c.saveFeatures(elements)
 	if err != nil {
 		gotrace.Error("Unable to create the feature file. %s", err)
 		os.Exit(1)
@@ -54,7 +59,7 @@ func (c *cmdInitFeatures) DoInitFeatures() {
 }
 
 // saveFeatures
-func (c *cmdInitFeatures) saveFeatures() (err error) {
+func (c *cmdInitFeatures) saveFeatures(elements *core.Elements) (err error) {
 	if utils.CheckFile(*c.pluginsFeaturePath, *c.pluginsFeatureFile) {
 		if !*c.replace {
 			err = fmt.Errorf("'%s/%s' already exist. Use --force to replace it", *c.pluginsFeaturePath, *c.pluginsFeatureFile)
@@ -63,36 +68,12 @@ func (c *cmdInitFeatures) saveFeatures() (err error) {
 		gotrace.Info("Replacing '%s/%s'", *c.pluginsFeaturePath, *c.pluginsFeatureFile)
 	}
 
-	identified := make(plugins)
+	identified := elements.ExtractTopElements()
 
-	max := 0
-	for name, plugin := range App.installedElements {
-		identified[name] = plugin
-		max++
-	}
+	gotrace.Info("%d/%d plugin features detected. ", len(identified.GetElements("plugin")), len(elements.GetElements("plugin")))
 
-	for _, plugin := range App.installedElements {
-		if plugin.Dependencies == "" {
-			continue
-		}
-		for _, depPluginDetail := range strings.Split(plugin.Dependencies, ",") {
-			depPlugin := strings.Split(depPluginDetail, ":")
-			if _, found := identified[depPlugin[0]]; found {
-				delete(identified, depPlugin[0])
-			}
-		}
-	}
-
-	gotrace.Info("%d/%d features plugin detected. ", len(identified), max)
-
-	featureFile := simplefile.NewSimpleFile(path.Join(*c.pluginsFeaturePath, *c.pluginsFeatureFile), 2)
-
-	for name := range identified {
-		featureFile.Add(1, "plugin", name)
-	}
-
-	if err = featureFile.WriteSimpleSortedFile(":"); err != nil {
-		return err
+	if err = identified.WriteSimple(path.Join(*c.pluginsFeaturePath, *c.pluginsFeatureFile), 2); err != nil {
+		return
 	}
 	gotrace.Info("%s/%s saved.", *c.pluginsFeaturePath, *c.pluginsFeatureFile)
 

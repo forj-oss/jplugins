@@ -1,4 +1,4 @@
-package main
+package coremgt
 
 import (
 	"encoding/json"
@@ -11,11 +11,11 @@ import (
 	"github.com/forj-oss/forjj-modules/trace"
 )
 
-type pluginsExport struct {
+type PluginsExport struct {
 	json         []pluginJson
 	exportFile   string
 	templateFile string
-	plugins      *pluginsStatus
+	plugins      *PluginsStatus
 }
 
 type pluginsJson []pluginJson
@@ -28,15 +28,15 @@ type pluginJson struct {
 	NewVersion  string
 }
 
-func newPluginsExport(exportFile, templateFile string, size int) (ret *pluginsExport) {
-	ret = new(pluginsExport)
+func NewPluginsExport(exportFile, templateFile string, size int) (ret *PluginsExport) {
+	ret = new(PluginsExport)
 	ret.exportFile = exportFile
 	ret.templateFile = templateFile
 	ret.json = make([]pluginJson, 0, size)
 	return
 }
 
-func (e *pluginsExport) doItOn(list *pluginsStatus) (err error) {
+func (e *PluginsExport) DoItOn(list *PluginsStatus) (err error) {
 	e.plugins = list
 	e.buildList()
 
@@ -52,13 +52,13 @@ func (e *pluginsExport) doItOn(list *pluginsStatus) (err error) {
 	return
 }
 
-func (e *pluginsExport) buildList() {
-	e.plugins.pluginsStatus = make(map[string]*pluginsStatusDetails)
+func (e *PluginsExport) buildList() {
+	e.plugins.PluginsStatus = make(map[string]*pluginsStatusDetails)
 
 	pluginsList, _ := e.plugins.sortPlugins()
 
 	for _, plugin := range pluginsList {
-		pluginInfo, found := e.plugins.pluginsStatus[plugin]
+		pluginInfo, found := e.plugins.PluginsStatus[plugin]
 		if !found {
 			continue
 		}
@@ -72,7 +72,7 @@ func (e *pluginsExport) buildList() {
 	}
 }
 
-func (e *pluginsExport) doExportJSON() error {
+func (e *PluginsExport) doExportJSON() error {
 	jsonData, err := json.MarshalIndent(e.json, "", "  ")
 	if err != nil {
 		return fmt.Errorf("Unable to encode in JSON. %s", err)
@@ -86,7 +86,7 @@ func (e *pluginsExport) doExportJSON() error {
 	return nil
 }
 
-func (e *pluginsExport) doExportTemplate() error {
+func (e *PluginsExport) doExportTemplate() error {
 	tmplData, err := ioutil.ReadFile(e.templateFile)
 	if err != nil {
 		return fmt.Errorf("'%s' unreadable. %s", e.templateFile, err)

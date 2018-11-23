@@ -1,10 +1,14 @@
 package simplefile
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"path"
 	"sort"
 	"strings"
+
+	"github.com/forj-oss/forjj-modules/trace"
 )
 
 // SimpleFile root struct to manage a Simple file format separated by colon.
@@ -45,7 +49,7 @@ func (s *SimpleFile) Add(index int, data ...string) {
 }
 
 // WriteSimpleSortedFile save the Simple file from data loaded
-func (s *SimpleFile) WriteSimpleSortedFile(sep string) (_ error) {
+func (s *SimpleFile) WriteSorted(sep string) (_ error) {
 
 	if sep == "" {
 		sep = ":"
@@ -71,5 +75,42 @@ func (s *SimpleFile) WriteSimpleSortedFile(sep string) (_ error) {
 		fmt.Fprintln(fd, strings.Join(s.data[name].data, sep))
 	}
 
+	return
+}
+
+// readFromSimpleFormat read a simple description file for plugins or groovies.
+func (s *SimpleFile) Read(sep string, treatData func([]string) (error)) (_ error) {
+	fd, err := os.Open(s.file)
+	if err != nil {
+		return fmt.Errorf("Unable to open file '%s'. %s", s.file, err)
+	}
+
+	if gotrace.IsDebugMode() {
+		fmt.Printf("Reading %s\n--------\n", s.file)
+	}
+	defer func() {
+		fd.Close()
+		if gotrace.IsDebugMode() {
+			fmt.Printf("-------- %s closed.\n", s.file)
+		}
+	}()
+
+	scanFile := bufio.NewScanner(fd)
+
+	for scanFile.Scan() {
+		line := scanFile.Text()
+		line = strings.Trim(line, " ")
+
+		if line == "" || line[0] == '#' {
+			return
+		}
+
+		if gotrace.IsDebugMode() {
+			fmt.Printf("%s: == %s ==\n", path.Base(s.file), line)
+		}
+		pluginRecord := strings.Split(line, sep)
+
+		treatData(pluginRecord)
+	}
 	return
 }
