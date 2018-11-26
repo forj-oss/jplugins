@@ -101,22 +101,66 @@ func (c *cmdCheckVersions) identifySource() (choices *utils.UpdatesSelect) {
 
 	choices.SetCheck(jenkinsHomeCheck, func() bool {
 		state := App.checkJenkinsHome()
-		return (!c.forcely || *c.useJenkinsHome) && state
+		ret := (!c.forcely || *c.useJenkinsHome) && state
+		if ret {
+			if c.forcely {
+				gotrace.Info("Using forcelly detected Jenkins home '%s'.", *c.jenkinsHomePath)
+			} else {
+				gotrace.Info("Using detected Jenkins home '%s'.", *c.jenkinsHomePath)
+			}
+		}
+		if *c.useJenkinsHome && !state {
+			gotrace.Warning("Unable to detect the lock file '%s'.", *c.jenkinsHomePath)
+		}
+		return ret
 	})
 
 	choices.SetCheck(lockCheck, func() bool {
 		state := App.checkSimpleFormatFile(*c.pluginsLock, lockFileName)
-		return (!c.forcely || *c.usePluginLock) && state
+		ret := (!c.forcely || *c.usePluginLock) && state
+		if ret {
+			if c.forcely {
+				gotrace.Info("Using forcelly detected lock file '%s'.", path.Join(*c.pluginsLock, lockFileName))
+			} else {
+				gotrace.Info("Using detected lock file '%s'.", path.Join(*c.pluginsLock, lockFileName))
+			}
+		}
+		if *c.usePluginLock && !state {
+			gotrace.Warning("Unable to detect the lock file '%s'.", path.Join(*c.pluginsLock, lockFileName))
+		}
+		return ret
 	})
 
 	choices.SetCheck(preInstallCheck, func() bool {
 		state := App.checkSimpleFormatFile(*c.preInstalledPath, preInstalledFileName)
+		ret := (!c.forcely || *c.usePreInstalled) && state
+		if ret {
+			if c.forcely {
+				gotrace.Info("Using forcelly detected pre-installed file '%s'.", path.Join(*c.preInstalledPath, preInstalledFileName))
+			} else {
+				gotrace.Info("Using detected pre-installed file '%s'.", path.Join(*c.preInstalledPath, preInstalledFileName))
+			}
+		}
+		if *c.usePreInstalled && !state {
+			gotrace.Warning("Unable to detect the pre-installed file '%s'.", path.Join(*c.preInstalledPath, preInstalledFileName))
+		}
 		return (!c.forcely || *c.usePreInstalled) && state
 	})
 
 	choices.SetCheck(featuresCheck, func() bool {
 		state := App.checkSimpleFormatFile(*c.pluginsFeaturePath, *c.pluginsFeatureFile)
-		return (!c.forcely || *c.usePluginFeature) && state
+		ret := (!c.forcely || *c.usePluginFeature) && state
+		if ret {
+			if c.forcely {
+				gotrace.Info("Using forcelly detected feature file '%s'.", path.Join(*c.pluginsFeaturePath, *c.pluginsFeatureFile))
+			} else {
+				gotrace.Info("Using detected Jenkins feature file '%s'.", path.Join(*c.pluginsFeaturePath, *c.pluginsFeatureFile))
+			}
+		}
+		if *c.usePluginFeature && !state {
+			gotrace.Warning("Unable to detect the Jenkins feature file '%s'.", path.Join(*c.pluginsFeaturePath, *c.pluginsFeatureFile))
+		}
+		return ret
 	})
 
 	choices.SetChoice("Checking features, pre-installed and lock files against Jenkins home",
