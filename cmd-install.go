@@ -25,7 +25,7 @@ func (c *cmdInstall) doInstall() {
 		os.Exit(1)
 	}
 
-	var elements *core.Elements
+	var elements *core.ElementsType
 
 	// Load the lock file in App.installedPlugins
 	if e, err := App.readFromSimpleFormat("", *c.lockFile) ; err != nil {

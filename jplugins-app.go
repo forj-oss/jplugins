@@ -150,16 +150,17 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 }
 
 // readFeaturesFromSimpleFormat will load a feature file and expand them to get a list of plugins/groovies/... (elements)
-func (a *jPluginsApp) readFeaturesFromSimpleFormat(featurePath, featureFile, featureURL string) (elements *core.Elements, err error) {
+func (a *jPluginsApp) readFeaturesFromSimpleFormat(featurePath, featureFile, featureURL string) (elements *core.ElementsType, err error) {
 	gotrace.Trace("Loading constraints...")
 
-	elements = core.NewElements()
+	elements = core.NewElementsType()
 
 	if featurePath != defaultFeaturesRepoPath {
 		elements.SetLocal()
 	}
 	elements.SetFeaturesPath(featurePath)
 	elements.SetFeaturesRepoURL(featureURL)
+	elements.SetRepository(a.repository)
 
 	feature := simplefile.NewSimpleFile(featureFile, 3)
 
@@ -199,7 +200,7 @@ func (a *jPluginsApp) checkJenkinsHome() (_ bool) {
 }
 
 // readFromJenkins read manifest of each plugins and store information in a.installedPlugins
-func (a *jPluginsApp) readFromJenkins() (elements *core.Elements, _ error) {
+func (a *jPluginsApp) readFromJenkins() (elements *core.ElementsType, _ error) {
 	if a.jenkinsHome == nil {
 		return
 	}
@@ -213,9 +214,9 @@ func (a *jPluginsApp) checkSimpleFormatFile(filepath, file string) (_ bool) {
 }
 
 // readFromSimpleFormat read a simple description file for plugins or groovies.
-func (a *jPluginsApp) readFromSimpleFormat(filepath, fileName string) (elements *core.Elements, _ error) {
+func (a *jPluginsApp) readFromSimpleFormat(filepath, fileName string) (elements *core.ElementsType, _ error) {
 	file := path.Join(filepath, fileName)
-	elements = core.NewElements()
+	elements = core.NewElementsType()
 
 	elements.AddSupport("plugin", "groovy")
 
@@ -228,7 +229,7 @@ func (a *jPluginsApp) readFromSimpleFormat(filepath, fileName string) (elements 
 }
 
 // printOutVersion display the list of plugins given
-func (a *jPluginsApp) printOutVersion(plugins *core.Elements) (_ bool) {
+func (a *jPluginsApp) printOutVersion(plugins *core.ElementsType) (_ bool) {
 	if plugins == nil {
 		return
 	}
@@ -244,7 +245,7 @@ func (a *jPluginsApp) printOutVersion(plugins *core.Elements) (_ bool) {
 }
 
 // saveVersionAsPreInstalled store the list of plugins in the jenkinsHomePath
-func (a *jPluginsApp) saveVersionAsPreInstalled(jenkinsHomePath string, plugins *core.Elements) (_ bool) {
+func (a *jPluginsApp) saveVersionAsPreInstalled(jenkinsHomePath string, plugins *core.ElementsType) (_ bool) {
 	if plugins == nil {
 		return
 	}

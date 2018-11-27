@@ -67,7 +67,7 @@ func (r *Repository) LoadFromURL() (_ bool) {
 	return true
 }
 
-func (r *Repository) Compare(elements *Elements) (updates *PluginsStatus) {
+func (r *Repository) Compare(elements *ElementsType) (updates *PluginsStatus) {
 	updates = NewPluginsStatus(elements, r)
 
 	updates.Compare()

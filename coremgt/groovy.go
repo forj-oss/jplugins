@@ -56,3 +56,8 @@ func (p *Groovy) GetType() string {
 func (p *Groovy) Name() string {
 	return p.name
 }
+
+// ChainElement do nothing for a Groovy object
+func (p *Groovy) ChainElement(*ElementsType) (_ *ElementsType, _ error) {
+	return
+}

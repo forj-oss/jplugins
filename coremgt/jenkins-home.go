@@ -34,7 +34,7 @@ func NewJenkinsHome(jenkinsHomePath string) (ret *JenkinsHome) {
 }
 
 // Install execute an installation of plugins/groovies to the right path.
-func (j *JenkinsHome) Install(elements *Elements, featureRepoPath string) error {
+func (j *JenkinsHome) Install(elements *ElementsType, featureRepoPath string) error {
 
 	j.cleanUp()
 	return j.install(elements, featureRepoPath)
@@ -57,10 +57,10 @@ func (j *JenkinsHome) IsValid() bool {
 }
 
 // GetPlugins read the list of plugins in Jenkins and load them in a Plugins object
-func (j *JenkinsHome) GetPlugins() (elements *Elements, _ error) {
+func (j *JenkinsHome) GetPlugins() (elements *ElementsType, _ error) {
 	pluginsPath := path.Join(j.homePath, jenkinsHomePluginsPath)
 
-	elements = NewElements()
+	elements = NewElementsType()
 
 	fEntries, err := ioutil.ReadDir(pluginsPath)
 
@@ -185,7 +185,7 @@ func (j *JenkinsHome) cleanUp() {
 }
 
 // install plugins and groovies as defined by plugins list.
-func (j *JenkinsHome) install(elementsType *Elements, featureRepoPath string) error {
+func (j *JenkinsHome) install(elementsType *ElementsType, featureRepoPath string) error {
 	iCountGroovy := 0
 	iCountPlugin := 0
 	iCountError := 0

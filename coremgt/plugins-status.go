@@ -23,7 +23,7 @@ type PluginsStatus struct {
 	plugins       map[string]*pluginsStatusDetails
 	groovies      map[string]*GroovyStatusDetails
 	PluginsStatus map[string]*pluginsStatusDetails
-	installed     *Elements
+	installed     *ElementsType
 	ref           *Repository
 	repoPath      string
 	repoURL       []*url.URL
@@ -31,7 +31,7 @@ type PluginsStatus struct {
 }
 
 // NewPluginsStatus creates an a plugin update status with a Ref repository
-func NewPluginsStatus(installed *Elements, ref *Repository) (pluginsCompared *PluginsStatus) {
+func NewPluginsStatus(installed *ElementsType, ref *Repository) (pluginsCompared *PluginsStatus) {
 	pluginsCompared = new(PluginsStatus)
 	pluginsCompared.plugins = make(map[string]*pluginsStatusDetails)
 	pluginsCompared.groovies = make(map[string]*GroovyStatusDetails)
@@ -275,7 +275,7 @@ func (s *PluginsStatus) DisplayUpdates() (_ bool) {
 
 // ImportInstalled import a list of plugins considered as pre-installed
 // It stores the list of plugins and constraints '>=' in the structure, so those plugins are installed at minimum to that list.
-func (s *PluginsStatus) ImportInstalled(elements *Elements) {
+func (s *PluginsStatus) ImportInstalled(elements *ElementsType) {
 
 	pluginsData := elements.list[pluginType]
 	for name, plugin := range pluginsData {

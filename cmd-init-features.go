@@ -36,7 +36,7 @@ func (c *cmdInitFeatures) init(parent *kingpin.CmdClause) {
 func (c *cmdInitFeatures) DoInitFeatures() {
 	App.setJenkinsHome(*c.jenkinsHomePath)
 
-	var elements *core.Elements
+	var elements *core.ElementsType
 	if App.checkJenkinsHome() {
 		if e, err := App.readFromJenkins() ; err != nil {
 			gotrace.Error("%s", err)
@@ -59,7 +59,7 @@ func (c *cmdInitFeatures) DoInitFeatures() {
 }
 
 // saveFeatures
-func (c *cmdInitFeatures) saveFeatures(elements *core.Elements) (err error) {
+func (c *cmdInitFeatures) saveFeatures(elements *core.ElementsType) (err error) {
 	if utils.CheckFile(*c.pluginsFeaturePath, *c.pluginsFeatureFile) {
 		if !*c.replace {
 			err = fmt.Errorf("'%s/%s' already exist. Use --force to replace it", *c.pluginsFeaturePath, *c.pluginsFeatureFile)

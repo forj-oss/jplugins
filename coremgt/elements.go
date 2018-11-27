@@ -5,32 +5,55 @@ import (
 	"net/url"
 
 	"jplugins/simplefile"
-	"strings"
 	"sort"
+	"strings"
 
 	"github.com/forj-oss/utils"
 )
 
-// Elements is collections of Plugins
-type Elements struct {
-	list      map[string]map[string]Element
+// Elements represents the list of Elements (plugins, features, etc...)
+type Elements map[string]Element
+
+// ElementsType is collections of Plugins
+type ElementsType struct {
+	list      map[string]Elements
 	supported []string
 
 	repoPath string
 	repoURL  []*url.URL
 	useLocal bool
+	noDeps   bool
+
+	ref *Repository
 }
 
-// NewElements creates the collection of plugins
-func NewElements() (ret *Elements) {
-	ret = new(Elements)
-	ret.list = make(map[string]map[string]Element)
+// NewElementsType creates the collection of plugins
+func NewElementsType() (ret *ElementsType) {
+	ret = new(ElementsType)
+	ret.list = make(map[string]Elements)
 	ret.supported = []string{featureType, groovyType, pluginType}
+	ret.noDeps = false
 	return
 }
 
+// SetRepository set a Repository object to the Elementstype object.
+func (e *ElementsType) SetRepository(ref *Repository) {
+	if e == nil {
+		return
+	}
+	e.ref = ref
+}
+
+// noChainLoaded
+func (e *ElementsType) noChainLoaded() {
+	if e == nil {
+		return
+	}
+	e.noDeps = true
+}
+
 // GetElements return the collection type requested.
-func (e *Elements) GetElements(elementType string) (_ map[string]Element) {
+func (e *ElementsType) GetElements(elementType string) (_ Elements) {
 	if e == nil {
 		return
 	}
@@ -41,7 +64,7 @@ func (e *Elements) GetElements(elementType string) (_ map[string]Element) {
 }
 
 // AddElement a new element to a collection type.
-func (e *Elements) AddElement(element Element) (err error) {
+func (e *ElementsType) AddElement(element Element) (err error) {
 	if e == nil {
 		return
 	}
@@ -51,16 +74,6 @@ func (e *Elements) AddElement(element Element) (err error) {
 	}
 
 	elementType := element.GetType()
-	found := false
-	for _, value := range e.supported {
-		if value == elementType {
-			found = true
-			break
-		}
-	}
-	if !e.checkElementType(elementType) {
-		return fmt.Errorf("Unsupported elementType")
-	}
 
 	elements, found := e.list[elementType]
 
@@ -69,11 +82,14 @@ func (e *Elements) AddElement(element Element) (err error) {
 	}
 	elements[element.Name()] = element
 	e.list[elementType] = elements
-	return
+	if e.noDeps {
+		return
+	}
+	return e.addChainedElements(element)
 }
 
 // Add a new element to a collection type.
-func (e *Elements) Add(fields ...string) (err error) {
+func (e *ElementsType) Add(fields ...string) (err error) {
 	if e == nil {
 		return
 	}
@@ -85,6 +101,13 @@ func (e *Elements) Add(fields ...string) (err error) {
 	if !e.checkElementType(elementType) {
 		return fmt.Errorf("Unsupported elementType")
 	}
+
+	return e.add(fields...)
+}
+
+// add internally the fields as a new element even if the root list restrict in types.
+func (e *ElementsType) add(fields ...string) (err error) {
+	elementType := fields[0]
 	name := fields[1]
 
 	elements, found := e.list[elementType]
@@ -101,10 +124,16 @@ func (e *Elements) Add(fields ...string) (err error) {
 	if err != nil {
 		return
 	}
-	return
+
+	if e.noDeps {
+		return
+	}
+
+	return e.addChainedElements(element)
 }
 
-func (e *Elements) Remove(elementType, name string) {
+// Remove a named element type.
+func (e *ElementsType) Remove(elementType, name string) {
 	if plugins, found := e.list[elementType]; found {
 		if _, found := plugins[name]; found {
 			delete(plugins, name)
@@ -116,7 +145,7 @@ func (e *Elements) Remove(elementType, name string) {
 
 // SetLocal set the useLocal to true
 // When set to true, jplugin do not clone a remote repo URL to store on cache
-func (e *Elements) SetLocal() {
+func (e *ElementsType) SetLocal() {
 	if e == nil {
 		return
 	}
@@ -125,7 +154,7 @@ func (e *Elements) SetLocal() {
 
 // SetFeaturesRepoURL validate and store the repoURL
 // It can be executed several times to store multiple URLs
-func (e *Elements) SetFeaturesRepoURL(repoURL string) error {
+func (e *ElementsType) SetFeaturesRepoURL(repoURL string) error {
 	if e == nil {
 		return nil
 	}
@@ -139,7 +168,7 @@ func (e *Elements) SetFeaturesRepoURL(repoURL string) error {
 }
 
 // SetFeaturesPath defines where a features repository is located like `jenkins-install-inits`
-func (e *Elements) SetFeaturesPath(repoPath string) error {
+func (e *ElementsType) SetFeaturesPath(repoPath string) error {
 	if e == nil {
 		return nil
 	}
@@ -153,12 +182,12 @@ func (e *Elements) SetFeaturesPath(repoPath string) error {
 }
 
 // AddSupport register a set function for a data type given
-func (e *Elements) AddSupport(elementTypes ...string) {
+func (e *ElementsType) AddSupport(elementTypes ...string) {
 	e.supported = elementTypes
 }
 
 // Read the file given
-func (e *Elements) Read(file string, cols int) (err error) {
+func (e *ElementsType) Read(file string, cols int) (err error) {
 	data := simplefile.NewSimpleFile(file, cols)
 
 	err = data.Read(":", func(fields []string) error {
@@ -168,8 +197,8 @@ func (e *Elements) Read(file string, cols int) (err error) {
 }
 
 // ExtractTopElements identifies top plugins (remove all dependencies)
-func (e *Elements) ExtractTopElements() (identified *Elements) {
-	identified = NewElements()
+func (e *ElementsType) ExtractTopElements() (identified *ElementsType) {
+	identified = NewElementsType()
 
 	plugins := e.list[pluginType]
 	for _, plugin := range plugins {
@@ -190,7 +219,7 @@ func (e *Elements) ExtractTopElements() (identified *Elements) {
 }
 
 // WriteSimple the list of plugins as Simple format
-func (e *Elements) WriteSimple(file string, cols int) (err error) {
+func (e *ElementsType) WriteSimple(file string, cols int) (err error) {
 	featureFile := simplefile.NewSimpleFile(file, 2)
 	for elementType, plugins := range e.list {
 		for name := range plugins {
@@ -202,7 +231,7 @@ func (e *Elements) WriteSimple(file string, cols int) (err error) {
 }
 
 // Length the list of plugins as Simple format
-func (e *Elements) Length() (total int) {
+func (e *ElementsType) Length() (total int) {
 	for _, elements := range e.list {
 		total += len(elements)
 	}
@@ -210,7 +239,7 @@ func (e *Elements) Length() (total int) {
 }
 
 // PrintOut loop on plugins to display them
-func (e *Elements) PrintOut(printDetails func(element Element)) {
+func (e *ElementsType) PrintOut(printDetails func(element Element)) {
 
 	plugins := e.list[pluginType]
 	pluginsList := make([]string, len(plugins))
@@ -228,17 +257,33 @@ func (e *Elements) PrintOut(printDetails func(element Element)) {
 	}
 }
 
-
 /************************************************************************
  ***************** INTERNAL FUNCTIONS ***********************************
  ************************************************************************/
 
-func (e *Elements) checkElementType(elementType string) (found bool) {
+func (e *ElementsType) checkElementType(elementType string) (found bool) {
 	for _, value := range e.supported {
 		if value == elementType {
 			found = true
 			return
 		}
 	}
+	return
+}
+
+func (e *ElementsType) addChainedElements(element Element) (_ error) {
+	elementsType, err := element.ChainElement(e)
+	if err != nil {
+		err = fmt.Errorf("Unable to attach elements related to %s-%s. %s", element.GetType(), element.Name(), err)
+		return
+	}
+	for _, elements := range elementsType.list {
+		for _, element := range elements {
+			if err = e.AddElement(element); err != nil {
+				return
+			}
+		}
+	}
+
 	return
 }

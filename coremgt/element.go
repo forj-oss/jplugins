@@ -6,6 +6,8 @@ type Element interface{
 	SetFrom(fields ...string) (err error)
 	GetType() string
 	Name() string
+	ChainElement(context *ElementsType) (*ElementsType, error)
+	//GetElementsFromRepo(func (name string) (*Elements, error))
 }
 
 // NewElement to create a known new element type

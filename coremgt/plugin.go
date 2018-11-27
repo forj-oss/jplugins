@@ -59,3 +59,24 @@ func (p *Plugin) GetType() string {
 func (p *Plugin) Name() string {
 	return p.ExtensionName
 }
+
+// ChainElement load plugins dependency tree from the repo
+//
+func (p *Plugin) ChainElement(context *ElementsType) (ret *ElementsType, _ error) {
+	refPlugin, found := context.ref.Get(p.Name())
+	if !found {
+		return nil, fmt.Errorf("Plugin '%s' not found in the public repository", p.Name())
+	}
+
+	ret = NewElementsType()
+	ret.AddSupport(pluginType)
+	ret.noChainLoaded()
+
+	for _, dep := range refPlugin.Dependencies {
+		if dep.Optionnal {
+			continue
+		}
+		ret.Add(pluginType, dep.Name, dep.Version)
+	}
+	return
+}

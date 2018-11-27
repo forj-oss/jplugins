@@ -37,7 +37,7 @@ func (c *cmdInitLockfile) DoInitLockfile() {
 		os.Exit(1)
 	}
 
-	var elements *core.Elements
+	var elements *core.ElementsType
 
 	if utils.CheckFile(*c.preInstalledPath, preInstalledFileName) {
 		if e, err := App.readFromSimpleFormat(*c.preInstalledPath, preInstalledFileName); err != nil {
