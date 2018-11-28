@@ -39,7 +39,7 @@ func (p *Feature) String() string {
                 index++
         }
 
-        return fmt.Sprintf("%s:%s-%s (constraints: %s)\n", pluginType, p.name, p.Version, strings.Join(ruleShown, ", "))
+        return fmt.Sprintf("%s:%s %s (constraints: %s)", featureType, p.name, p.Version, strings.Join(ruleShown, ", "))
 }
 
 // GetVersion return the plugin Version struct.

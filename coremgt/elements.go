@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/forj-oss/utils"
 	"github.com/forj-oss/forjj-modules/trace"
+	"github.com/forj-oss/utils"
 )
 
 const (
@@ -90,7 +90,13 @@ func (e *ElementsType) AddElement(element Element) (ret Element, err error) {
 
 	if existing, found := elements[element.Name()]; found {
 		// Keep the most recent version (base constraint)
+		version1, _ := existing.GetVersion()
+		version2, _ := element.GetVersion()
+		gotrace.Trace("Updating existing %s %s: %s <=> %s.", elementType, element.Name(), version1, version2)
 		element.Merge(existing, newestPolicy)
+		gotrace.Trace("Updated: %s.", element)
+	} else {
+		gotrace.Trace("Adding %s.", element)
 	}
 
 	elements[element.Name()] = element
@@ -151,7 +157,6 @@ func (e *ElementsType) add(fields ...string) (element Element, err error) {
 
 	elements[name] = element
 	e.list[elementType] = elements
-
 
 	if e.noDeps {
 		return
@@ -304,6 +309,9 @@ func (e *ElementsType) addChainedElements(element Element) (_ error) {
 	elementsType, err := element.ChainElement(e)
 	if err != nil {
 		err = fmt.Errorf("Unable to attach elements related to %s-%s. %s", element.GetType(), element.Name(), err)
+		return
+	}
+	if elementsType == nil {
 		return
 	}
 	for _, elements := range elementsType.list {

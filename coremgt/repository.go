@@ -3,14 +3,17 @@ package coremgt
 import (
 	"encoding/json"
 	"net/url"
+	"sort"
 
 	"github.com/forj-oss/utils"
 
 	"github.com/forj-oss/forjj-modules/trace"
+
+	goversion "github.com/hashicorp/go-version"
 )
 
 type Repository struct {
-	RepositoryPlugins // Loaded from json with LoadFromURL and JenkinsRepoFile
+	RepositoryPlugins  // Loaded from json with LoadFromURL and JenkinsRepoFile
 	historyPlugins     RepositoryPluginsHistory
 	loaded             bool
 	repoURLs           []*url.URL
@@ -110,7 +113,7 @@ func (r *Repository) Get(pluginRequested ...string) (plugin *RepositoryPlugin, f
 	}
 	name := pluginRequested[0]
 	version := "latest"
-	if len(pluginRequested) >= 2 {
+	if len(pluginRequested) >= 2 && pluginRequested[1] != "" {
 		version = pluginRequested[1]
 	}
 	if version == "latest" {
@@ -118,6 +121,22 @@ func (r *Repository) Get(pluginRequested ...string) (plugin *RepositoryPlugin, f
 	} else {
 		if pluginVersions, foundPlugin := r.historyPlugins.Plugins[name]; foundPlugin {
 			plugin, found = pluginVersions[version]
+			if !found {
+				versions := make([]*goversion.Version, 0, len(pluginVersions))
+				for version := range pluginVersions {
+					versionToAdd, _ := goversion.NewVersion(version)
+					versions = append(versions, versionToAdd)
+				}
+				sort.Sort(goversion.Collection(versions))
+				versionToCompare, _ := goversion.NewConstraint(">" + version)
+				for _, versionToCheck := range versions {
+					if versionToCompare.Check(versionToCheck) {
+						version = versionToCheck.Original()
+						plugin = pluginVersions[version]
+						break
+					}
+				}
+			}
 			pluginInfo := r.Plugins[name]
 			plugin.Description = pluginInfo.Description
 			plugin.Title = pluginInfo.Title

@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	goversion "github.com/hashicorp/go-version"
+
+	"github.com/forj-oss/forjj-modules/trace"
 )
 
 const (
@@ -37,7 +39,7 @@ func (p *Plugin) String() string {
 		index++
 	}
 
-	return fmt.Sprintf("%s:%s-%s (constraints: %s)\n", pluginType, p.ExtensionName, p.Version, strings.Join(ruleShown, ", "))
+	return fmt.Sprintf("%s:%s %s (constraints: %s)", pluginType, p.ExtensionName, p.Version, strings.Join(ruleShown, ", "))
 }
 
 // GetVersion return the plugin Version struct.
@@ -134,6 +136,7 @@ func (p *Plugin) Name() string {
 // ChainElement load plugins dependency tree from the repo
 //
 func (p *Plugin) ChainElement(context *ElementsType) (ret *ElementsType, _ error) {
+	gotrace.Trace("building chained list from %s", p)
 	version := "latest"
 	if p.Version != "latest" {
 		version = p.Version
@@ -146,15 +149,17 @@ func (p *Plugin) ChainElement(context *ElementsType) (ret *ElementsType, _ error
 	ret = NewElementsType()
 	ret.AddSupport(pluginType)
 	ret.noChainLoaded()
+	ret.SetRepository(context.ref)
 
 	for _, dep := range refPlugin.Dependencies {
 		if dep.Optionnal {
 			continue
 		}
 		plugin := NewPlugin()
-		plugin.SetFrom(dep.Name, ">="+dep.Version)
-		ret.Add(pluginType, dep.Name, dep.Version)
+		plugin.SetFrom(pluginType, dep.Name, ">="+dep.Version)
+		ret.AddElement(plugin)
 	}
+	gotrace.Trace("Chained list built from %s", p)
 	return
 }
 
@@ -164,9 +169,32 @@ func (p *Plugin) Merge(element Element, policy int) (err error) {
 
 	switch policy {
 	case oldestPolicy:
+		origVersion, _ := p.GetVersion()
+		newPlugin, ok := element.(*Plugin)
+		if !ok {
+			err = fmt.Errorf("plugin merge support only plugins element type.")
+			return
+		}
+		newVersion, _ := newPlugin.GetVersion()
+
+		if origVersion.Get().GreaterThan(newVersion.Get()) {
+			p.Version = newPlugin.Version
+			p.rules = newPlugin.rules
+		}
 	case keepPolicy:
 	case newestPolicy:
+		origVersion, _ := p.GetVersion()
+		newPlugin, ok := element.(*Plugin)
+		if !ok {
+			err = fmt.Errorf("plugin merge support only plugins element type.")
+			return
+		}
+		newVersion, _ := newPlugin.GetVersion()
 
+		if origVersion.Get().LessThan(newVersion.Get()) {
+			p.Version = newPlugin.Version
+			p.rules = newPlugin.rules
+		}
 	}
 	return
 }

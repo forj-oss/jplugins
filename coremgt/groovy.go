@@ -3,6 +3,7 @@ package coremgt
 import (
 	"fmt"
 	"strings"
+
 	goversion "github.com/hashicorp/go-version"
 )
 
@@ -18,7 +19,7 @@ type Groovy struct {
 	Dependencies string
 	Description  string
 	CommitID     string
-	rules          map[string]goversion.Constraints
+	rules        map[string]goversion.Constraints
 }
 
 // NewGroovy return a Groovy object
@@ -29,17 +30,17 @@ func NewGroovy() (ret *Groovy) {
 
 // String return the string representation of the plugin
 func (p *Groovy) String() string {
-        if p == nil {
-                return "nil"
-        }
+	if p == nil {
+		return "nil"
+	}
 	ruleShown := make([]string, len(p.rules))
-        index := 0
-        for _, rule := range p.rules {
-                ruleShown[index] = rule.String()
-                index++
-        }
+	index := 0
+	for _, rule := range p.rules {
+		ruleShown[index] = rule.String()
+		index++
+	}
 
-        return fmt.Sprintf("%s:%s-%s (constraints: %s)\n", pluginType, p.name, p.Version, strings.Join(ruleShown, ", "))
+	return fmt.Sprintf("%s:%s %s (constraints: %s)", groovyType, p.name, p.Version, strings.Join(ruleShown, ", "))
 }
 
 // GetVersion return the plugin Version struct.
@@ -66,7 +67,7 @@ func (p *Groovy) SetFrom(fields ...string) (err error) {
 }
 
 // CompleteFromContext nothing to complete.
-func (p *Groovy)CompleteFromContext(_ *ElementsType) {
+func (p *Groovy) CompleteFromContext(_ *ElementsType) {
 }
 
 // GetType return the internal type string
