@@ -8,6 +8,9 @@ type Element interface{
 	Name() string
 	ChainElement(context *ElementsType) (*ElementsType, error)
 	//GetElementsFromRepo(func (name string) (*Elements, error))
+	Merge(element Element, policy int) (err error)
+	CompleteFromContext(context *ElementsType)
+	String() string
 }
 
 // NewElement to create a known new element type

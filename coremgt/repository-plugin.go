@@ -15,6 +15,7 @@ type RepositoryPlugin struct {
 	Version        string
 	Title          string
 	Description    string `json:"excerpt"`
+	JenkinsVersion string `json:"requiredCore"`
 	versionHistory []VersionStruct
 	ref            *Repository
 }

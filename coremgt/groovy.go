@@ -2,6 +2,8 @@ package coremgt
 
 import (
 	"fmt"
+	"strings"
+	goversion "github.com/hashicorp/go-version"
 )
 
 const (
@@ -16,12 +18,28 @@ type Groovy struct {
 	Dependencies string
 	Description  string
 	CommitID     string
+	rules          map[string]goversion.Constraints
 }
 
 // NewGroovy return a Groovy object
 func NewGroovy() (ret *Groovy) {
 	ret = new(Groovy)
 	return
+}
+
+// String return the string representation of the plugin
+func (p *Groovy) String() string {
+        if p == nil {
+                return "nil"
+        }
+	ruleShown := make([]string, len(p.rules))
+        index := 0
+        for _, rule := range p.rules {
+                ruleShown[index] = rule.String()
+                index++
+        }
+
+        return fmt.Sprintf("%s:%s-%s (constraints: %s)\n", pluginType, p.name, p.Version, strings.Join(ruleShown, ", "))
 }
 
 // GetVersion return the plugin Version struct.
@@ -47,6 +65,10 @@ func (p *Groovy) SetFrom(fields ...string) (err error) {
 	return
 }
 
+// CompleteFromContext nothing to complete.
+func (p *Groovy)CompleteFromContext(_ *ElementsType) {
+}
+
 // GetType return the internal type string
 func (p *Groovy) GetType() string {
 	return groovyType
@@ -59,5 +81,12 @@ func (p *Groovy) Name() string {
 
 // ChainElement do nothing for a Groovy object
 func (p *Groovy) ChainElement(*ElementsType) (_ *ElementsType, _ error) {
+	return
+}
+
+// Merge execute a merge between 2 groovies and keep the one corresponding to the constraint given
+// It is based on 3 policies: choose oldest, keep existing and choose newest
+func (p *Groovy) Merge(element Element, policy int) (err error) {
+
 	return
 }

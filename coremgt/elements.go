@@ -9,6 +9,13 @@ import (
 	"strings"
 
 	"github.com/forj-oss/utils"
+	"github.com/forj-oss/forjj-modules/trace"
+)
+
+const (
+	oldestPolicy = 0
+	keepPolicy   = 1
+	newestPolicy = 2
 )
 
 // Elements represents the list of Elements (plugins, features, etc...)
@@ -64,7 +71,7 @@ func (e *ElementsType) GetElements(elementType string) (_ Elements) {
 }
 
 // AddElement a new element to a collection type.
-func (e *ElementsType) AddElement(element Element) (err error) {
+func (e *ElementsType) AddElement(element Element) (ret Element, err error) {
 	if e == nil {
 		return
 	}
@@ -80,56 +87,77 @@ func (e *ElementsType) AddElement(element Element) (err error) {
 	if !found {
 		elements = make(map[string]Element)
 	}
+
+	if existing, found := elements[element.Name()]; found {
+		// Keep the most recent version (base constraint)
+		element.Merge(existing, newestPolicy)
+	}
+
 	elements[element.Name()] = element
 	e.list[elementType] = elements
+	ret = element
+
 	if e.noDeps {
 		return
 	}
-	return e.addChainedElements(element)
+	return ret, e.addChainedElements(element)
 }
 
 // Add a new element to a collection type.
-func (e *ElementsType) Add(fields ...string) (err error) {
+func (e *ElementsType) Add(fields ...string) (_ Element, err error) {
 	if e == nil {
 		return
 	}
 
 	if len(fields) < 2 {
-		return fmt.Errorf("Invalid format. Requires at least 2 fields, ie type and name")
+		err = fmt.Errorf("Invalid format. Requires at least 2 fields, ie type and name")
+		return
 	}
 	elementType := fields[0]
 	if !e.checkElementType(elementType) {
-		return fmt.Errorf("Unsupported elementType")
+		err = fmt.Errorf("Unsupported elementType")
+		return
 	}
 
 	return e.add(fields...)
 }
 
-// add internally the fields as a new element even if the root list restrict in types.
-func (e *ElementsType) add(fields ...string) (err error) {
+// add internally the fields as a new element even if the root list restrict in types. (no call to checkElementType)
+func (e *ElementsType) add(fields ...string) (element Element, err error) {
 	elementType := fields[0]
 	name := fields[1]
 
 	elements, found := e.list[elementType]
-	var element Element
 	if !found {
 		elements = make(map[string]Element)
 		element = NewElement(elementType)
 	} else if element, found = elements[name]; !found {
 		element = NewElement(elementType)
 	}
-	elements[name] = element
-	e.list[elementType] = elements
 	err = element.SetFrom(fields...)
 	if err != nil {
 		return
 	}
 
+	element.CompleteFromContext(e)
+
+	if existing, found := elements[element.Name()]; found {
+		// Keep the most recent version (base constraint)
+		element.Merge(existing, newestPolicy)
+		gotrace.Trace("Updated %s", element)
+	} else {
+		gotrace.Trace("Added %s", element)
+	}
+
+	elements[name] = element
+	e.list[elementType] = elements
+
+
 	if e.noDeps {
 		return
 	}
 
-	return e.addChainedElements(element)
+	return element, e.addChainedElements(element)
 }
 
 // Remove a named element type.
@@ -190,8 +218,9 @@ func (e *ElementsType) AddSupport(elementTypes ...string) {
 func (e *ElementsType) Read(file string, cols int) (err error) {
 	data := simplefile.NewSimpleFile(file, cols)
 
-	err = data.Read(":", func(fields []string) error {
-		return e.Add(fields...)
+	err = data.Read(":", func(fields []string) (err error) {
+		_, err = e.Add(fields...)
+		return
 	})
 	return
 }
@@ -279,7 +308,7 @@ func (e *ElementsType) addChainedElements(element Element) (_ error) {
 	}
 	for _, elements := range elementsType.list {
 		for _, element := range elements {
-			if err = e.AddElement(element); err != nil {
+			if _, err = e.AddElement(element); err != nil {
 				return
 			}
 		}

@@ -10,12 +10,14 @@ import (
 )
 
 type Repository struct {
-	Plugins            map[string]*RepositoryPlugin
+	RepositoryPlugins // Loaded from json with LoadFromURL and JenkinsRepoFile
+	historyPlugins     RepositoryPluginsHistory
 	loaded             bool
 	repoURLs           []*url.URL
 	repoReplace        []string
 	repoSubPaths       []string
 	repoFile           string
+	repoHistoryFile    string
 	repoPluginReplace  []string
 	repoPluginSubPaths []string
 }
@@ -26,10 +28,20 @@ type RepositoryDependency struct {
 	Version   string
 }
 
+type RepositoryPlugins struct {
+	Plugins map[string]*RepositoryPlugin
+}
+
+// RepositoryHistory is the plugin-versions.json data representation
+type RepositoryPluginsHistory struct {
+	Plugins map[string]map[string]*RepositoryPlugin
+}
+
 const (
 	JenkinsRepoURL     = "https://updates.jenkins.io"
 	JenkinsRepoVersion = "current"
 	JenkinsRepoFile    = "update-center.actual.json"
+	JenkinsHistoryFile = "plugin-versions.json" // TODO: Use this to load it so we can identify better version from constraints.
 	JenkinsPluginRepo  = "download/plugins"
 )
 
@@ -41,6 +53,7 @@ func NewRepository() (ret *Repository) {
 
 	ret.repoReplace = []string{""}
 	ret.repoFile = JenkinsRepoFile
+	ret.repoHistoryFile = JenkinsHistoryFile
 	ret.repoPluginReplace = []string{""}
 	ret.repoPluginSubPaths = []string{JenkinsPluginRepo}
 	return
@@ -48,8 +61,9 @@ func NewRepository() (ret *Repository) {
 
 // TODO: Be able to change default repository values
 
-// loadFromURL read an URL file containing the Jenkins updates repository data as json.
+// LoadFromURL read an URL file containing the Jenkins updates repository data as json.
 func (r *Repository) LoadFromURL() (_ bool) {
+	gotrace.Info("1/2 Loading repositories... %s", r.repoFile)
 	repoData, err := utils.ReadDocumentFrom(r.repoURLs, r.repoReplace, r.repoSubPaths, r.repoFile, "")
 	if err != nil {
 		gotrace.Error("Unable to load '%s'. %s", r.repoFile, err)
@@ -62,11 +76,26 @@ func (r *Repository) LoadFromURL() (_ bool) {
 		return
 	}
 
-	r.SetDefaults()
+	gotrace.Info("2/2 Loading repositories... %s", r.repoHistoryFile)
+	repoData, err = utils.ReadDocumentFrom(r.repoURLs, r.repoReplace, r.repoSubPaths, r.repoHistoryFile, "")
+	if err != nil {
+		gotrace.Error("Unable to load '%s'. %s", r.repoHistoryFile, err)
+		return
+	}
+
+	err = json.Unmarshal(repoData, &r.historyPlugins)
+	if err != nil {
+		gotrace.Error("Unable to read json data from '%s'. %s", r.repoHistoryFile, err)
+		return
+	}
+
+	gotrace.Info("Repositories loaded.")
+	r.setDefaults()
 
 	return true
 }
 
+// Compare creates a PluginsStatus which store old and new version of each elements.
 func (r *Repository) Compare(elements *ElementsType) (updates *PluginsStatus) {
 	updates = NewPluginsStatus(elements, r)
 
@@ -74,13 +103,36 @@ func (r *Repository) Compare(elements *ElementsType) (updates *PluginsStatus) {
 	return
 }
 
-func (r *Repository) Get(name string) (plugin *RepositoryPlugin, found bool) {
-	plugin, found = r.Plugins[name]
+// Get return the plugin requested (name with or without version) as described by Jenkins updates.
+func (r *Repository) Get(pluginRequested ...string) (plugin *RepositoryPlugin, found bool) {
+	if len(pluginRequested) < 1 {
+		return
+	}
+	name := pluginRequested[0]
+	version := "latest"
+	if len(pluginRequested) >= 2 {
+		version = pluginRequested[1]
+	}
+	if version == "latest" {
+		plugin, found = r.Plugins[name]
+	} else {
+		if pluginVersions, foundPlugin := r.historyPlugins.Plugins[name]; foundPlugin {
+			plugin, found = pluginVersions[version]
+			pluginInfo := r.Plugins[name]
+			plugin.Description = pluginInfo.Description
+			plugin.Title = pluginInfo.Title
+		}
+	}
 	return
 }
 
-func (r *Repository) SetDefaults() {
+func (r *Repository) setDefaults() {
 	for _, plugin := range r.Plugins {
 		plugin.ref = r
+	}
+	for _, pluginVersions := range r.historyPlugins.Plugins {
+		for _, pluginVersion := range pluginVersions {
+			pluginVersion.ref = r
+		}
 	}
 }

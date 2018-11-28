@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"jplugins/simplefile"
 	"path"
+	"strings"
 
 	"github.com/forj-oss/go-git"
+	goversion "github.com/hashicorp/go-version"
 )
 
 const (
@@ -16,12 +18,28 @@ const (
 type Feature struct {
 	Version string
 	name    string
+	rules          map[string]goversion.Constraints
 }
 
 // NewFeature return a feature object
 func NewFeature() (ret *Feature) {
 	ret = new(Feature)
 	return
+}
+
+// String return the string representation of the plugin
+func (p *Feature) String() string {
+ if p == nil {
+                return "nil"
+        }
+	ruleShown := make([]string, len(p.rules))
+        index := 0
+        for _, rule := range p.rules {
+                ruleShown[index] = rule.String()
+                index++
+        }
+
+        return fmt.Sprintf("%s:%s-%s (constraints: %s)\n", pluginType, p.name, p.Version, strings.Join(ruleShown, ", "))
 }
 
 // GetVersion return the plugin Version struct.
@@ -44,6 +62,10 @@ func (p *Feature) SetFrom(fields ...string) (err error) {
 	return
 }
 
+// CompleteFromContext nothing to complete.
+func (p *Feature) CompleteFromContext(_ *ElementsType) {
+}
+
 // GetType return the internal type string
 func (p *Feature) GetType() string {
 	return featureType
@@ -63,6 +85,7 @@ func (p *Feature) ChainElement(context *ElementsType) (ret *ElementsType, _ erro
 	ret = NewElementsType()
 	ret.AddSupport(pluginType, groovyType)
 	ret.noChainLoaded()
+	ret.SetRepository(context.ref)
 
 	if !context.useLocal {
 		return nil, fmt.Errorf("Git clone of repository not currently implemented. Do git task and use --features-repo-path")
@@ -81,12 +104,20 @@ func (p *Feature) ChainElement(context *ElementsType) (ret *ElementsType, _ erro
 
 	simpleFile := simplefile.NewSimpleFile(featureFile, 3)
 
-	err := simpleFile.Read(":", func(fields []string) error {
-		return ret.Add(fields...)
+	err := simpleFile.Read(":", func(fields []string) (err error) {
+		_, err = ret.Add(fields...)
+		return
 	})
 
 	if err != nil {
 		return nil, fmt.Errorf("Unable to read feature file '%s'. %s", featureFile, err)
 	}
+	return
+}
+
+// Merge execute a merge between 2 features and keep the one corresponding to the constraint given
+// It is based on 3 policies: choose oldest, keep existing and choose newest
+func (p *Feature) Merge(element Element, policy int) (err error) {
+
 	return
 }

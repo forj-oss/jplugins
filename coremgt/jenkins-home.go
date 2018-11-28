@@ -139,7 +139,7 @@ func (j *JenkinsHome) GetPlugins() (elements *ElementsType, _ error) {
 				os.RemoveAll(packagePath)
 				tmpExtract = false
 			}
-			if err = elements.AddElement(manifest); err != nil {
+			if _, err = elements.AddElement(manifest); err != nil {
 				return nil, err
 			}
 		}
