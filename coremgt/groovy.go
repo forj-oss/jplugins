@@ -87,7 +87,12 @@ func (p *Groovy) ChainElement(*ElementsType) (_ *ElementsType, _ error) {
 
 // Merge execute a merge between 2 groovies and keep the one corresponding to the constraint given
 // It is based on 3 policies: choose oldest, keep existing and choose newest
-func (p *Groovy) Merge(element Element, policy int) (err error) {
+func (p *Groovy) Merge(_ Element, _ int) (_ bool, _ error) {
 
+	return
+}
+
+// IsFixed indicates if the groovy version is fixed.
+func (p *Groovy) IsFixed() (_ bool) {
 	return
 }

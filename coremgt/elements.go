@@ -70,7 +70,7 @@ func (e *ElementsType) GetElements(elementType string) (_ Elements) {
 	return
 }
 
-// AddElement a new element to a collection type.
+// AddElement the new element to the collection, then add their dependencies if noDeps is false.
 func (e *ElementsType) AddElement(element Element) (ret Element, err error) {
 	if e == nil {
 		return
@@ -289,6 +289,54 @@ func (e *ElementsType) PrintOut(printDetails func(element Element)) {
 	for _, name := range pluginsList {
 		printDetails(plugins[name])
 	}
+}
+
+// DeterminePluginsVersion apply the updates repository ref to the list of plugins to set proper version of plugins from rules
+// Rules can change and a rule validation will be executed at the end of the process
+func (e *ElementsType) DeterminePluginsVersion(ref *Repository) (_ error) {
+	if e == nil {
+		return
+	}
+	if ref == nil {
+		ref = e.ref
+	}
+
+	collection := newElementsCollection(e)
+	elementsTypeOrdered, err := collection.BuildOrder()
+	if err != nil {
+		return
+	}
+
+	for _, elements := range elementsTypeOrdered {
+		for _, element := range elements {
+			pluginDetails := e.GetRepoPlugin(element.Name())
+			if updated, err := element.Merge(pluginDetails, newestPolicy); err != nil {
+				return err
+			} else if updated {
+				gotrace.Trace("%s updated.", element)
+			}
+
+			depPlugins, err := element.ChainElement(e)
+			if err != nil {
+				return err
+			}
+			for _, depElement := range depPlugins.GetElements(pluginType) {
+				if _, err = e.AddElement(depElement); err != nil {
+					return err
+				}
+			}
+
+		}
+	}
+	return
+}
+
+// GetRepoPlugin return a plugin
+func (e *ElementsType) GetRepoPlugin(props ...string) (ret Element) {
+	ret = NewPlugin()
+	ret.SetFrom(pluginType, props[0], props[1])
+	ret.CompleteFromContext(e)
+	return
 }
 
 /************************************************************************

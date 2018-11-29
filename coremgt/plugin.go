@@ -25,6 +25,7 @@ type Plugin struct {
 	Dependencies   string `yaml:"Plugin-Dependencies"`
 	Description    string `yaml:"Specification-Title"`
 	rules          map[string]goversion.Constraints
+	fixed          bool // true if a constraint force a version
 }
 
 // String return the string representation of the plugin
@@ -80,9 +81,14 @@ func (p *Plugin) SetFrom(fields ...string) (err error) {
 
 		constraintPiecesRe, _ := regexp.Compile(`^([<>=!~])*(.*)$`)
 		constraintPieces := constraintPiecesRe.FindStringSubmatch(p.Version)
-		if constraintPieces != nil && constraintPieces[1] != "" {
-			// Remove the constraints rule piece of the verison string
-			p.Version = constraintPieces[2]
+		if constraintPieces != nil {
+			if constraintPieces[1] != "" {
+				// Remove the constraints rule piece of the verison string
+				p.Version = constraintPieces[2]
+			}
+			if constraintPieces[0] == "" || constraintPieces[0] == "=" {
+				p.fixed = true
+			}
 		}
 	}
 	return
@@ -165,7 +171,13 @@ func (p *Plugin) ChainElement(context *ElementsType) (ret *ElementsType, _ error
 
 // Merge execute a merge between 2 plugins and keep the one corresponding to the constraint given
 // It is based on 3 policies: choose oldest, keep existing and choose newest
-func (p *Plugin) Merge(element Element, policy int) (err error) {
+func (p *Plugin) Merge(element Element, policy int) (updated bool, err error) {
+	if p == nil {
+		return
+	}
+	if p.fixed { // The plugin version is fixed (= constraint)
+		return
+	}
 
 	switch policy {
 	case oldestPolicy:
@@ -180,6 +192,7 @@ func (p *Plugin) Merge(element Element, policy int) (err error) {
 		if origVersion.Get().GreaterThan(newVersion.Get()) {
 			p.Version = newPlugin.Version
 			p.rules = newPlugin.rules
+			updated = true
 		}
 	case keepPolicy:
 	case newestPolicy:
@@ -194,7 +207,16 @@ func (p *Plugin) Merge(element Element, policy int) (err error) {
 		if origVersion.Get().LessThan(newVersion.Get()) {
 			p.Version = newPlugin.Version
 			p.rules = newPlugin.rules
+			updated = true
 		}
 	}
 	return
+}
+
+// IsFixed indicates if the plugin version is fixed.
+func (p *Plugin) IsFixed() (_ bool) {
+	if p == nil {
+		return
+	}
+	return p.fixed
 }

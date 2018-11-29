@@ -1,5 +1,5 @@
-hash: d2b2c31de3fba1b720d6d5babf94847dd0707e1ebd41a005b0bae1606f2db613
-updated: 2018-11-28T21:33:00.828113231Z
+hash: 0c0a68cb679f686088ed99c03dee123cf45d71fbac5784d8a9f45e886b0cd341
+updated: 2018-11-29T15:07:12.416560098Z
 imports:
 - name: github.com/alecthomas/kingpin
   version: 947dcec5ba9c011838740e680966fd7087a71d0d
@@ -11,6 +11,8 @@ imports:
   version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
 - name: github.com/fatih/color
   version: 3f9d52f7176a6927daacff70a3e8d1dc2025c53e
+- name: github.com/foize/go.fifo
+  version: 3a04cfeec12143459af4c62b147b365e950051c9
 - name: github.com/forj-oss/forjj-modules
   version: d5925062c57798150af536995b63e7384f3fd9ec
   subpackages:

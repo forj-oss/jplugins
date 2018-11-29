@@ -18,7 +18,7 @@ const (
 type Feature struct {
 	Version string
 	name    string
-	rules          map[string]goversion.Constraints
+	rules   map[string]goversion.Constraints
 }
 
 // NewFeature return a feature object
@@ -29,17 +29,17 @@ func NewFeature() (ret *Feature) {
 
 // String return the string representation of the plugin
 func (p *Feature) String() string {
- if p == nil {
-                return "nil"
-        }
+	if p == nil {
+		return "nil"
+	}
 	ruleShown := make([]string, len(p.rules))
-        index := 0
-        for _, rule := range p.rules {
-                ruleShown[index] = rule.String()
-                index++
-        }
+	index := 0
+	for _, rule := range p.rules {
+		ruleShown[index] = rule.String()
+		index++
+	}
 
-        return fmt.Sprintf("%s:%s %s (constraints: %s)", featureType, p.name, p.Version, strings.Join(ruleShown, ", "))
+	return fmt.Sprintf("%s:%s %s (constraints: %s)", featureType, p.name, p.Version, strings.Join(ruleShown, ", "))
 }
 
 // GetVersion return the plugin Version struct.
@@ -117,7 +117,12 @@ func (p *Feature) ChainElement(context *ElementsType) (ret *ElementsType, _ erro
 
 // Merge execute a merge between 2 features and keep the one corresponding to the constraint given
 // It is based on 3 policies: choose oldest, keep existing and choose newest
-func (p *Feature) Merge(element Element, policy int) (err error) {
+func (p *Feature) Merge(_ Element, _ int) (_ bool, _ error) {
 
+	return
+}
+
+// IsFixed indicates if the plugin version is fixed.
+func (p *Feature) IsFixed() (_ bool) {
 	return
 }

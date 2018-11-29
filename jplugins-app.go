@@ -179,14 +179,6 @@ func (a *jPluginsApp) readFeaturesFromSimpleFormat(featurePath, featureFile, fea
 		err = errors.New("Errors detected. Please review")
 		return
 	}
-
-	gotrace.Trace("Identifying version from constraints...")
-	//lockData.DefinePluginsVersion()
-
-	/*if !lockData.CheckMinDep() {
-		return
-	}*/
-
 	return
 }
 

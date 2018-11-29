@@ -216,74 +216,16 @@ func (c *cmdCheckVersions) jenkinsUpdates(choice utils.UpdatesSelectChoice, stat
 		if err != nil {
 			return fmt.Errorf("Unable to check updates. %s", err)
 		}
-		c.updates = repo.Compare(elements)
+		gotrace.Trace("Identifying version from constraints...")
+		if err := elements.DeterminePluginsVersion(repo); err != nil {
+			return err
+		}
+		elements.PrintOut(func(element core.Element) {
+			version, _ := element.GetVersion()
+			fmt.Printf("%s: %s\n", element.Name(), version)
+
+		})
 	}
 
 	return nil
 }
-
-/*func (c *cmdCheckVersions) selectSource() (_ bool) {
-	choices := c.identifySource()
-
-	App.repository = core.NewRepository()
-	repo := App.repository
-	if !repo.LoadFromURL() {
-		return
-	}
-
-	App.setJenkinsHome(*c.jenkinsHomePath)
-	if !*c.usePluginLock && !*c.usePreInstalled && !*c.usePluginFeature {
-		// load from jenkins
-		if App.checkJenkinsHome() {
-			gotrace.Info("Using detected Jenkins home path '%s'", *c.jenkinsHomePath)
-			return App.readFromJenkins()
-		}
-		// Load from lock file
-		if App.checkSimpleFormatFile(*c.pluginsLock, lockFileName) {
-			gotrace.Info("Using detected lockfile '%s/%s'", *c.pluginsLock, lockFileName)
-			return App.readFromSimpleFormat(*c.pluginsLock, lockFileName)
-		}
-		// Load from pre-installed
-		if App.checkSimpleFormatFile(*c.preInstalledPath, preInstalledFileName) {
-			gotrace.Info("Using detected pre-installed file '%s/%s'", *c.preInstalledPath, preInstalledFileName)
-			return App.readFromSimpleFormat(*c.preInstalledPath, preInstalledFileName)
-		}
-
-		if App.checkSimpleFormatFile(*c.pluginsFeaturePath, *c.pluginsFeatureFile) {
-			gotrace.Info("Using detected feature file '%s/%s'", *c.pluginsFeaturePath, *c.pluginsFeatureFile)
-			App.readFromSimpleFormat(*c.pluginsFeaturePath, *c.pluginsFeatureFile)
-		}
-		return
-	}
-	if *c.usePluginLock {
-		gotrace.Info("Forcelly using lockfile '%s/%s'", *c.pluginsLock, lockFileName)
-		if !App.readFromSimpleFormat(*c.pluginsLock, lockFileName) {
-			return
-		}
-
-	} else if *c.usePreInstalled {
-		gotrace.Info("Forcelly using pre-installed file '%s/%s'", *c.preInstalledPath, preInstalledFileName)
-		if !App.readFromSimpleFormat(*c.preInstalledPath, preInstalledFileName) {
-			return
-		}
-
-	} else {
-		// Load lock file as ref
-		if App.checkSimpleFormatFile(*c.pluginsLock, lockFileName) {
-			gotrace.Info("Using detected lockfile '%s/%s'", *c.pluginsLock, lockFileName)
-			if App.readFromSimpleFormat(*c.pluginsLock, lockFileName) {
-				lockData := core.NewPluginsStatus(App.installedElements, repo)
-
-				lockData.ImportInstalled(App.installedElements)
-
-				if !App.readFeatures(*c.featureRepoPath, path.Join(*c.pluginsFeaturePath, *c.pluginsFeatureFile), *c.featureRepoURL, lockData) {
-					os.Exit(1)
-				}
-			}
-		}
-
-	}
-
-	return true
-}
-*/
