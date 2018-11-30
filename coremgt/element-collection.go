@@ -39,7 +39,6 @@ func (c *elementsCollection) BuildOrder() (_ map[string][]Element, _ error) {
 		treatedElements := c.treatedElementsType[elementType]
 		for name, element := range elements {
 			if element.IsFixed() {
-				orderedElements = append(orderedElements, element)
 				treatedElements[name] = element
 				continue
 			}
@@ -53,7 +52,7 @@ func (c *elementsCollection) BuildOrder() (_ map[string][]Element, _ error) {
 
 			c.orderedElementsType[elementType] = orderedElements
 			c.treatedElementsType[elementType] = treatedElements
-			if c.treatElementOrder(element) {
+			if c.treatElementOrder(queue, element) {
 				orderedElements = append(orderedElements, element)
 				treatedElements[element.Name()] = element
 			} else {
@@ -75,16 +74,25 @@ func (c *elementsCollection) BuildOrder() (_ map[string][]Element, _ error) {
 // treatElementOrder determine if all dependencies are treated or not
 // if all treated, return true
 // else return false
-func (c *elementsCollection) treatElementOrder(element Element) (treated bool) {
+func (c *elementsCollection) treatElementOrder(queue *fifo.Queue, element Element) (treated bool) {
 	if c == nil {
 		return
 	}
 	treated = true
 	switch element.GetType() {
 	case pluginType:
-		version, _ := element.GetVersion()
-		
-		refPlugin, _ := c.context.ref.Get(element.Name(), version.Get().Original())
+		var refPlugin *RepositoryPlugin
+		if version, _ := element.GetVersion() ; version.Get() == nil {
+			refPlugin, _ = c.context.ref.Get(element.Name()) // Get latest by default
+		} else {
+			refPlugin, _ = c.context.ref.Get(element.Name(), version.Get().Original())
+		}
+
+		if refPlugin == nil {
+			// No information about dependencies from updates. Ignoring it and
+			// consider it with no dependencies. So it return true.
+			return true
+		}
 
 		treatedElements, found := c.treatedElementsType[element.GetType()]
 		if !found {

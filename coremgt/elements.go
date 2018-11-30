@@ -51,13 +51,15 @@ func (e *ElementsType) SetRepository(ref *Repository) {
 	e.ref = ref
 }
 
-// noChainLoaded
-func (e *ElementsType) noChainLoaded() {
+// noRecursiveChainLoaded
+func (e *ElementsType) noRecursiveChain() {
 	if e == nil {
 		return
 	}
 	e.noDeps = true
 }
+
+// ********** Elements management *******************
 
 // GetElements return the collection type requested.
 func (e *ElementsType) GetElements(elementType string) (_ Elements) {
@@ -65,6 +67,18 @@ func (e *ElementsType) GetElements(elementType string) (_ Elements) {
 		return
 	}
 	if ret, found := e.list[elementType]; found {
+		return ret
+	}
+	return
+}
+
+// GetElement return the collection type requested.
+func (e *ElementsType) GetElement(elementType, name string) (_ Element) {
+	if e == nil {
+		return
+	}
+	elements := e.GetElements(elementType)
+	if ret, found := elements[name]; found {
 		return ret
 	}
 	return
@@ -88,26 +102,96 @@ func (e *ElementsType) AddElement(element Element) (ret Element, err error) {
 		elements = make(map[string]Element)
 	}
 
-	if existing, found := elements[element.Name()]; found {
-		// Keep the most recent version (base constraint)
-		version1, _ := existing.GetVersion()
-		version2, _ := element.GetVersion()
-		gotrace.Trace("Updating existing %s %s: %s <=> %s.", elementType, element.Name(), version1, version2)
-		element.Merge(existing, newestPolicy)
-		gotrace.Trace("Updated: %s.", element)
-	} else {
-		gotrace.Trace("Adding %s.", element)
-	}
-
 	elements[element.Name()] = element
 	e.list[elementType] = elements
 	ret = element
 
 	if e.noDeps {
 		return
+	} else {
+		gotrace.Trace("Added %s.", element)
 	}
 	return ret, e.addChainedElements(element)
 }
+
+// UpdateElement the new element to the collection, then add their dependencies if noDeps is false.
+func (e *ElementsType) UpdateElement(curElement, newElement Element) (updated bool, err error) {
+	if e == nil {
+		return
+	}
+
+	if curElement == nil || newElement == nil {
+		return
+	}
+
+	elementType := curElement.GetType()
+	elementName := curElement.Name()
+
+	elements, found := e.list[elementType]
+
+	if !found {
+		elements = make(map[string]Element)
+	}
+
+	if _, found := elements[curElement.Name()]; !found {
+		return false, fmt.Errorf("Element %s not registered", curElement)
+	}
+
+	version1, _ := curElement.GetVersion()
+	version2, _ := newElement.GetVersion()
+	gotrace.Trace("Updating existing %s %s: %s <=> %s.", elementType, elementName, version1, version2)
+
+	updated, err = curElement.Merge(e, newElement, newestPolicy)
+	if err != nil {
+		return false, err
+	} else if updated {
+		gotrace.Trace("Updated: %s.", curElement)
+	} else {
+		gotrace.Trace("kept   : %s.", curElement)
+	}
+
+	if e.noDeps {
+		return
+	}
+
+	err = e.addChainedElements(curElement)
+	return
+}
+
+// DeleteElement remove the element from the list and cleanup dependencies
+func (e *ElementsType) DeleteElement(element Element) {
+	elements := e.GetElements(element.GetType())
+	gotrace.Trace("Deleting %s", element)
+	delete(elements, element.Name())
+
+	for _, depElement := range element.GetDependencies() {
+		depElement.RemoveDependencyTo(element)
+		if len(depElement.GetParents()) == 0 {
+			e.DeleteElement(depElement)
+		}
+	}
+}
+
+// RefreshDependencies refresh Dependencies between old element list and new element list
+func (e *ElementsType) RefreshDependencies(curElement, newElement Element) {
+	// Remove old dependencies
+	curDeps := curElement.GetDependencies()
+	newDeps := newElement.GetDependenciesFromContext(e)
+	for name, curDependency := range curDeps {
+		if _, found := newDeps[name]; !found {
+			curElement.RemoveDependencyTo(curDependency)
+		}
+	}
+
+	// Add Missing new dependencies
+	for name, newDependency := range newDeps {
+		if _, found := curDeps[name]; !found {
+			curElement.AddDependencyTo(newDependency)
+		}
+	}
+}
+
+// ************** Element management by name ***************
 
 // Add a new element to a collection type.
 func (e *ElementsType) Add(fields ...string) (_ Element, err error) {
@@ -128,43 +212,6 @@ func (e *ElementsType) Add(fields ...string) (_ Element, err error) {
 	return e.add(fields...)
 }
 
-// add internally the fields as a new element even if the root list restrict in types. (no call to checkElementType)
-func (e *ElementsType) add(fields ...string) (element Element, err error) {
-	elementType := fields[0]
-	name := fields[1]
-
-	elements, found := e.list[elementType]
-	if !found {
-		elements = make(map[string]Element)
-		element = NewElement(elementType)
-	} else if element, found = elements[name]; !found {
-		element = NewElement(elementType)
-	}
-	err = element.SetFrom(fields...)
-	if err != nil {
-		return
-	}
-
-	element.CompleteFromContext(e)
-
-	if existing, found := elements[element.Name()]; found {
-		// Keep the most recent version (base constraint)
-		element.Merge(existing, newestPolicy)
-		gotrace.Trace("Updated %s", element)
-	} else {
-		gotrace.Trace("Added %s", element)
-	}
-
-	elements[name] = element
-	e.list[elementType] = elements
-
-	if e.noDeps {
-		return
-	}
-
-	return element, e.addChainedElements(element)
-}
-
 // Remove a named element type.
 func (e *ElementsType) Remove(elementType, name string) {
 	if plugins, found := e.list[elementType]; found {
@@ -173,8 +220,9 @@ func (e *ElementsType) Remove(elementType, name string) {
 			e.list[elementType] = plugins
 		}
 	}
-
 }
+
+// *********** Elementtype list configuration **************
 
 // SetLocal set the useLocal to true
 // When set to true, jplugin do not clone a remote repo URL to store on cache
@@ -218,6 +266,8 @@ func (e *ElementsType) SetFeaturesPath(repoPath string) error {
 func (e *ElementsType) AddSupport(elementTypes ...string) {
 	e.supported = elementTypes
 }
+
+// **************** Misc ************************************
 
 // Read the file given
 func (e *ElementsType) Read(file string, cols int) (err error) {
@@ -301,6 +351,17 @@ func (e *ElementsType) DeterminePluginsVersion(ref *Repository) (_ error) {
 		ref = e.ref
 	}
 
+	e.PrintOut(func(element Element) {
+		fmt.Println(element)
+	})
+
+	// Setting parent plugin constraints due to fixed version plugin
+	e.defineParentConstraints()
+
+	e.PrintOut(func(element Element) {
+		fmt.Println(element)
+	})
+
 	collection := newElementsCollection(e)
 	elementsTypeOrdered, err := collection.BuildOrder()
 	if err != nil {
@@ -310,7 +371,7 @@ func (e *ElementsType) DeterminePluginsVersion(ref *Repository) (_ error) {
 	for _, elements := range elementsTypeOrdered {
 		for _, element := range elements {
 			pluginDetails := e.GetRepoPlugin(element.Name())
-			if updated, err := element.Merge(pluginDetails, newestPolicy); err != nil {
+			if updated, err := element.Merge(e, pluginDetails, newestPolicy); err != nil {
 				return err
 			} else if updated {
 				gotrace.Trace("%s updated.", element)
@@ -343,6 +404,41 @@ func (e *ElementsType) GetRepoPlugin(props ...string) (ret Element) {
  ***************** INTERNAL FUNCTIONS ***********************************
  ************************************************************************/
 
+// defineParentConstraints is used to define the parent constraints
+// required by a plugin version pinned.
+// plugins which depends on a fixed version plugin may not support latest version, so those plugins must be downgraded.
+func (e *ElementsType) defineParentConstraints() (_ error) {
+
+	fixedElements := e.getFixedElements()
+
+	for _, element := range fixedElements {
+		e.setElementsRequiredVersion(element, element.GetParents())
+	}
+	return
+}
+
+// getFixedElements return a list of elements having a pinned version
+func (e *ElementsType) getFixedElements() (fixedElements []Element) {
+
+	fixedElements = make([]Element, 0, 8)
+
+	for _, elements := range e.list {
+		for _, element := range elements {
+			if element.IsFixed() {
+				fixedElements = append(fixedElements, element)
+			}
+		}
+	}
+	return
+}
+
+// setElementsRequiredVersion recursively will set an highest version following the dependency constraint given.
+func (e *ElementsType) setElementsRequiredVersion(element Element, elements map[string]Element) {
+	for _, elementToConstrain := range elements {
+		elementToConstrain.SetVersionConstraintFromDepConstraint(e, element)
+	}
+}
+
 func (e *ElementsType) checkElementType(elementType string) (found bool) {
 	for _, value := range e.supported {
 		if value == elementType {
@@ -354,21 +450,102 @@ func (e *ElementsType) checkElementType(elementType string) (found bool) {
 }
 
 func (e *ElementsType) addChainedElements(element Element) (_ error) {
-	elementsType, err := element.ChainElement(e)
+
+	// Build a list of plugins required by the current one.
+	// Each plugins listed has not been built recursively
+	// To get sub deps on each dep, must be done with GetDependenciesFromContext(context)
+	elementTypeDeps, err := element.ChainElement(e)
+
+	if err != nil {
+		return err
+	}
+
+	if gotrace.IsDebugMode() {
+		if len(elementTypeDeps.list) == 0 {
+			fmt.Printf("%s has no dependencies.\n", element)
+		} else {
+			fmt.Printf("%s has:\n", element)
+			for _, elementDeps := range elementTypeDeps.list {
+				for _, elementDependency := range elementDeps {
+					elementDepType := elementDependency.GetType()
+					elementDepName := elementDependency.Name()
+					foundStr := ""
+					if existingDep := e.GetElement(elementDepType, elementDepName); existingDep != nil {
+						foundStr = fmt.Sprintf(" (Found %s)", existingDep)
+					}
+					fmt.Printf("- %s%s\n", elementDependency, foundStr)
+				}
+			}
+		}
+	}
+
 	if err != nil {
 		err = fmt.Errorf("Unable to attach elements related to %s-%s. %s", element.GetType(), element.Name(), err)
 		return
 	}
-	if elementsType == nil {
+	if elementTypeDeps == nil {
 		return
 	}
-	for _, elements := range elementsType.list {
-		for _, element := range elements {
-			if _, err = e.AddElement(element); err != nil {
-				return
+	for _, elementDeps := range elementTypeDeps.list {
+		for _, elementDependency := range elementDeps {
+			elementDepType := elementDependency.GetType()
+			elementDepName := elementDependency.Name()
+
+			if existingDep := e.GetElement(elementDepType, elementDepName); existingDep == nil {
+				if _, err = e.AddElement(elementDependency); err != nil {
+					return
+				}
+
+				// Set this elementDependency added as required by element
+				elementDependency = e.GetElement(elementDependency.GetType(), elementDependency.Name())
+				element.AddDependencyTo(elementDependency)
+			} else {
+				if updated, err := e.UpdateElement(existingDep, elementDependency); err != nil {
+					return
+				} else if updated {
+					// Refreshing dependencies of each element dependency
+					e.RefreshDependencies(existingDep, elementDependency)
+				}
 			}
 		}
 	}
 
 	return
+}
+
+// add internally the fields as a new element even if the root list restrict in types. (no call to checkElementType)
+func (e *ElementsType) add(fields ...string) (element Element, err error) {
+	elementType := fields[0]
+	name := fields[1]
+
+	elements, found := e.list[elementType]
+	if !found {
+		elements = make(map[string]Element)
+		element = NewElement(elementType)
+	} else if element, found = elements[name]; !found {
+		element = NewElement(elementType)
+	}
+	err = element.SetFrom(fields...)
+	if err != nil {
+		return
+	}
+
+	element.CompleteFromContext(e)
+
+	if existing, found := elements[element.Name()]; found {
+		// Keep the most recent version (base constraint)
+		element.Merge(e, existing, newestPolicy)
+		gotrace.Trace("Updated %s", element)
+	} else {
+		gotrace.Trace("Added %s", element)
+	}
+
+	elements[name] = element
+	e.list[elementType] = elements
+
+	if e.noDeps {
+		return
+	}
+
+	return element, e.addChainedElements(element)
 }

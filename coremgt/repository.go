@@ -107,6 +107,8 @@ func (r *Repository) Compare(elements *ElementsType) (updates *PluginsStatus) {
 }
 
 // Get return the plugin requested (name with or without version) as described by Jenkins updates.
+//
+// If the version is defined but not found, it will return the closest higher version matching this unknown version
 func (r *Repository) Get(pluginRequested ...string) (plugin *RepositoryPlugin, found bool) {
 	if len(pluginRequested) < 1 {
 		return
@@ -121,7 +123,7 @@ func (r *Repository) Get(pluginRequested ...string) (plugin *RepositoryPlugin, f
 	} else {
 		if pluginVersions, foundPlugin := r.historyPlugins.Plugins[name]; foundPlugin {
 			plugin, found = pluginVersions[version]
-			if !found {
+			if !found { // We need to get the upper version from the history list for the given unknown version.
 				versions := make([]*goversion.Version, 0, len(pluginVersions))
 				for version := range pluginVersions {
 					versionToAdd, _ := goversion.NewVersion(version)
@@ -142,6 +144,38 @@ func (r *Repository) Get(pluginRequested ...string) (plugin *RepositoryPlugin, f
 			plugin.Title = pluginInfo.Title
 		}
 	}
+	return
+}
+
+// GetVersions return the list of a plugin version for a given plugin
+func (r *Repository) GetVersions(name string) (_ map[string]*RepositoryPlugin) {
+	if list, found := r.historyPlugins.Plugins[name]; found {
+		return list
+	}
+	return
+}
+
+// GetOrderedVersions return the list of a plugin version for a given plugin ordered from latest to oldest.
+func (r *Repository) GetOrderedVersions(name string) (ret goversion.Collection) {
+
+	refVersions := r.GetVersions(name)
+	versions := make([]*goversion.Version, 0, len(refVersions))
+	for version := range r.GetVersions(name) {
+		v, _ := goversion.NewVersion(version)
+		if v != nil {
+			versions = append(versions, v)
+		}
+	}
+
+	ret = goversion.Collection(versions)
+
+	sort.Sort(ret)
+
+	// Reversing the order
+	for left, right := 0, len(ret)-1; left < right; left, right = left+1, right-1 {
+		ret[left], ret[right] = ret[right], ret[left]
+	}
+
 	return
 }
 

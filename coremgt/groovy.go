@@ -87,7 +87,7 @@ func (p *Groovy) ChainElement(*ElementsType) (_ *ElementsType, _ error) {
 
 // Merge execute a merge between 2 groovies and keep the one corresponding to the constraint given
 // It is based on 3 policies: choose oldest, keep existing and choose newest
-func (p *Groovy) Merge(_ Element, _ int) (_ bool, _ error) {
+func (p *Groovy) Merge(_ *ElementsType, _ Element, _ int) (_ bool, _ error) {
 
 	return
 }
@@ -95,4 +95,36 @@ func (p *Groovy) Merge(_ Element, _ int) (_ bool, _ error) {
 // IsFixed indicates if the groovy version is fixed.
 func (p *Groovy) IsFixed() (_ bool) {
 	return
+}
+
+// GetParents return the list of features which depends on this feature.
+func (p *Groovy) GetParents() (_ map[string]Element) {
+	return
+}
+
+// GetDependencies return the list of features depedencies required by this feature.
+func (p *Groovy) GetDependencies() (_ map[string]Element) {
+	return
+}
+
+// GetDependenciesFromContext return the list of features depedencies required by this feature.
+func (p *Groovy) GetDependenciesFromContext(*ElementsType) (_ map[string]Element) {
+	return
+}
+
+// SetVersionConstraintFromDepConstraint add a constraint to match the
+// dependency version constraints
+func (p *Groovy) SetVersionConstraintFromDepConstraint(*ElementsType, Element) (_ error) {
+	return
+}
+
+// IsVersionCandidate return true systematically
+func (p *Groovy) IsVersionCandidate(version *goversion.Version) bool {
+	return true
+}
+
+func (p *Groovy) RemoveDependencyTo(depElement Element) {
+}
+
+func (p *Groovy) AddDependencyTo(depElement Element) {
 }

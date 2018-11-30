@@ -84,7 +84,7 @@ func (p *Feature) ChainElement(context *ElementsType) (ret *ElementsType, _ erro
 
 	ret = NewElementsType()
 	ret.AddSupport(pluginType, groovyType)
-	ret.noChainLoaded()
+	ret.noRecursiveChain()
 	ret.SetRepository(context.ref)
 
 	if !context.useLocal {
@@ -117,7 +117,7 @@ func (p *Feature) ChainElement(context *ElementsType) (ret *ElementsType, _ erro
 
 // Merge execute a merge between 2 features and keep the one corresponding to the constraint given
 // It is based on 3 policies: choose oldest, keep existing and choose newest
-func (p *Feature) Merge(_ Element, _ int) (_ bool, _ error) {
+func (p *Feature) Merge(_ *ElementsType, _ Element, _ int) (_ bool, _ error) {
 
 	return
 }
@@ -125,4 +125,36 @@ func (p *Feature) Merge(_ Element, _ int) (_ bool, _ error) {
 // IsFixed indicates if the plugin version is fixed.
 func (p *Feature) IsFixed() (_ bool) {
 	return
+}
+
+// GetParents return the list of features which depends on this feature.
+func (p *Feature) GetParents() (_ map[string]Element) {
+	return
+}
+
+// GetDependencies return the list of features depedencies required by this feature.
+func (p *Feature) GetDependencies() (_ map[string]Element) {
+	return
+}
+
+// GetDependenciesFromContext return the list of features depedencies required by this feature.
+func (p *Feature) GetDependenciesFromContext(*ElementsType) (_ map[string]Element) {
+	return
+}
+
+// SetVersionConstraintFromDepConstraint add a constraint to match the
+// dependency version constraints
+func (p *Feature) SetVersionConstraintFromDepConstraint(*ElementsType, Element) (_ error) {
+	return
+}
+
+// IsVersionCandidate return true systematically
+func (p *Feature) IsVersionCandidate(version *goversion.Version) bool {
+	return true
+}
+
+func (p *Feature) RemoveDependencyTo(depElement Element) {
+}
+
+func (p *Feature) AddDependencyTo(depElement Element) {
 }

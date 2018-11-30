@@ -25,7 +25,9 @@ type Plugin struct {
 	Dependencies   string `yaml:"Plugin-Dependencies"`
 	Description    string `yaml:"Specification-Title"`
 	rules          map[string]goversion.Constraints
-	fixed          bool // true if a constraint force a version
+	fixed          bool               // true if a constraint force a version
+	parents        map[string]Element // List of parent Elements dependencies
+	dependencies   map[string]Element // List of Elements dependencies
 }
 
 // String return the string representation of the plugin
@@ -35,12 +37,22 @@ func (p *Plugin) String() string {
 	}
 	ruleShown := make([]string, len(p.rules))
 	index := 0
-	for _, rule := range p.rules {
-		ruleShown[index] = rule.String()
+	constraints := ""
+	for ruleName, rule := range p.rules {
+		ruleShown[index] = fmt.Sprintf("%s (%s)", ruleName, rule.String())
 		index++
 	}
 
-	return fmt.Sprintf("%s:%s %s (constraints: %s)", pluginType, p.ExtensionName, p.Version, strings.Join(ruleShown, ", "))
+	if index > 0 {
+		constraints = fmt.Sprintf(" (constraints: %s)", strings.Join(ruleShown, ", "))
+	}
+
+	fixed := ""
+	if p.fixed {
+		fixed = "FIXED:"
+	}
+
+	return fmt.Sprintf("%s:%s %s%s%s", pluginType, p.ExtensionName, fixed, p.Version, constraints)
 }
 
 // GetVersion return the plugin Version struct.
@@ -58,6 +70,8 @@ func (p *Plugin) GetVersionString() string {
 func NewPlugin() (ret *Plugin) {
 	ret = new(Plugin)
 	ret.rules = make(map[string]goversion.Constraints)
+	ret.parents = make(map[string]Element)
+	ret.dependencies = make(map[string]Element)
 	return
 }
 
@@ -77,19 +91,32 @@ func (p *Plugin) SetFrom(fields ...string) (err error) {
 			return
 		}
 
-		p.rules[constraints.String()] = constraints
-
-		constraintPiecesRe, _ := regexp.Compile(`^([<>=!~])*(.*)$`)
+		constraintPiecesRe, _ := regexp.Compile(`^([<>=!~]*)(.*)$`)
 		constraintPieces := constraintPiecesRe.FindStringSubmatch(p.Version)
+		ruleName := "GreaterOrEqualTo"
 		if constraintPieces != nil {
 			if constraintPieces[1] != "" {
 				// Remove the constraints rule piece of the verison string
 				p.Version = constraintPieces[2]
 			}
-			if constraintPieces[0] == "" || constraintPieces[0] == "=" {
-				p.fixed = true
+			if !p.fixed {
+				if constraintPieces[1] == "" || constraintPieces[1] == "=" {
+					// Version fixing
+					p.fixed = true
+					ruleName = "FixedTo"
+					p.rules = make(map[string]goversion.Constraints)
+					constraints, _ = goversion.NewConstraint("<=" + p.Version)
+				}
+			} else {
+				if (constraintPieces[1] == "" || constraintPieces[1] == "=") && constraintPieces[2] != p.Version {
+					err = fmt.Errorf("%s has been pinned twice to 2 different versions. '%s' vs '%s'", p.ExtensionName, p.Version, constraintPieces[2])
+				}
+				return
 			}
 		}
+
+		p.rules[ruleName] = constraints
+
 	}
 	return
 }
@@ -142,7 +169,6 @@ func (p *Plugin) Name() string {
 // ChainElement load plugins dependency tree from the repo
 //
 func (p *Plugin) ChainElement(context *ElementsType) (ret *ElementsType, _ error) {
-	gotrace.Trace("building chained list from %s", p)
 	version := "latest"
 	if p.Version != "latest" {
 		version = p.Version
@@ -154,7 +180,7 @@ func (p *Plugin) ChainElement(context *ElementsType) (ret *ElementsType, _ error
 
 	ret = NewElementsType()
 	ret.AddSupport(pluginType)
-	ret.noChainLoaded()
+	ret.noRecursiveChain()
 	ret.SetRepository(context.ref)
 
 	for _, dep := range refPlugin.Dependencies {
@@ -165,13 +191,12 @@ func (p *Plugin) ChainElement(context *ElementsType) (ret *ElementsType, _ error
 		plugin.SetFrom(pluginType, dep.Name, ">="+dep.Version)
 		ret.AddElement(plugin)
 	}
-	gotrace.Trace("Chained list built from %s", p)
 	return
 }
 
 // Merge execute a merge between 2 plugins and keep the one corresponding to the constraint given
 // It is based on 3 policies: choose oldest, keep existing and choose newest
-func (p *Plugin) Merge(element Element, policy int) (updated bool, err error) {
+func (p *Plugin) Merge(context *ElementsType, element Element, policy int) (updated bool, err error) {
 	if p == nil {
 		return
 	}
@@ -179,37 +204,48 @@ func (p *Plugin) Merge(element Element, policy int) (updated bool, err error) {
 		return
 	}
 
+	origVersion, _ := p.GetVersion()
+	newPlugin, ok := element.(*Plugin)
+	if !ok {
+		err = fmt.Errorf("plugin merge support only plugins element type.")
+		return
+	}
+	newVersion, _ := newPlugin.GetVersion()
+
+	// No version to merge, so exit.
+	if origVersion.Get() == nil && newVersion.Get() == nil {
+		return
+	}
+
+	// If current plugin has no version, get it from the new one and exit
+	if origVersion.Get() == nil {
+		p.Version = newPlugin.Version
+		p.rules = newPlugin.rules
+		updated = true
+		return
+	}
+
+	// If no version to merge from, then exit
+	if newVersion.Get() == nil {
+		return
+	}
+
 	switch policy {
 	case oldestPolicy:
-		origVersion, _ := p.GetVersion()
-		newPlugin, ok := element.(*Plugin)
-		if !ok {
-			err = fmt.Errorf("plugin merge support only plugins element type.")
-			return
-		}
-		newVersion, _ := newPlugin.GetVersion()
-
 		if origVersion.Get().GreaterThan(newVersion.Get()) {
 			p.Version = newPlugin.Version
 			p.rules = newPlugin.rules
 			updated = true
 		}
-	case keepPolicy:
+	case keepPolicy: // No merge
 	case newestPolicy:
-		origVersion, _ := p.GetVersion()
-		newPlugin, ok := element.(*Plugin)
-		if !ok {
-			err = fmt.Errorf("plugin merge support only plugins element type.")
-			return
-		}
-		newVersion, _ := newPlugin.GetVersion()
-
 		if origVersion.Get().LessThan(newVersion.Get()) {
 			p.Version = newPlugin.Version
 			p.rules = newPlugin.rules
 			updated = true
 		}
 	}
+
 	return
 }
 
@@ -219,4 +255,140 @@ func (p *Plugin) IsFixed() (_ bool) {
 		return
 	}
 	return p.fixed
+}
+
+// SetVersionConstraintFromDepConstraint add a constraint to match the
+// dependency version constraints
+func (p *Plugin) SetVersionConstraintFromDepConstraint(context *ElementsType, depElement Element) (err error) {
+
+	depPlugin, ok := depElement.(*Plugin)
+	if !ok {
+		return
+	}
+
+	// Loop on all versions from latest to oldest
+	for _, version := range context.ref.GetOrderedVersions(p.ExtensionName) {
+		// Get the plugin dependencies for this specific version from updates.
+		refPlugin, _ := context.ref.Get(p.ExtensionName, version.Original())
+
+		// Get the required plugin version for this plugin (dependency)
+		depPluginVersion := refPlugin.Dependencies.GetVersion(depPlugin.ExtensionName)
+
+		// If a dependency is found, check version candidature.
+		if depPluginVersion != nil {
+			// Check if the plugin dependency rule match the requirement.
+			if !depElement.IsVersionCandidate(depPluginVersion) {
+				continue // Go to the earlier version
+			}
+		}
+
+		// Define a constraint that this plugin cannot be higher than this version.
+		constraint, _ := goversion.NewConstraint("<=" + version.Original())
+
+		// Set or replace the LessOrEqualTo contraint
+		gotrace.Trace("%s is downgraded to %s due to %s.", p, version.Original(), depPlugin)
+		p.rules["LessOrEqualTo"] = constraint
+		p.Version = version.Original()
+		p.updateDependenciesRelations(context, refPlugin)
+
+		// Do this work with the new parent version to parent of this plugin
+		for _, elementToConstrain := range p.parents {
+			err = elementToConstrain.SetVersionConstraintFromDepConstraint(context, p)
+			if err != nil {
+				return
+			}
+		}
+		break
+	}
+	return fmt.Errorf("Unable to find a proper version of %s which match the dep need to %s", p, depElement)
+}
+
+// updateDependenciesRelations of the current plugins with a new refplugin given
+// It will add new one and remove old one
+func (p *Plugin) updateDependenciesRelations(context *ElementsType, refPlugin *RepositoryPlugin) {
+	treatedPlugins := make(map[string]bool)
+
+	for _, dependency := range refPlugin.Dependencies {
+		if _, found := p.dependencies[dependency.Name]; found {
+			treatedPlugins[dependency.Name] = true
+			continue
+		} else {
+			context.Add(pluginType, dependency.Name, ">="+dependency.Version)
+			treatedPlugins[dependency.Name] = true
+		}
+	}
+
+	for depName, depElement := range p.dependencies {
+		_, found := treatedPlugins[depName]
+		// We found a dependency which was already treated
+		if found {
+			continue
+		}
+
+		// Old dependency to remove
+		p.RemoveDependencyTo(depElement)
+
+		if len(depElement.GetParents()) == 0 {
+			context.DeleteElement(depElement)
+		}
+	}
+}
+
+func (p *Plugin) IsVersionCandidate(version *goversion.Version) bool {
+	for _, rule := range p.rules {
+		if !rule.Check(version) {
+			return false
+		}
+	}
+	return true
+}
+
+/******* Dependency management ************/
+
+// GetParents return the list of plugins which depends on this plugin.
+func (p *Plugin) GetParents() map[string]Element {
+	return p.parents
+}
+
+// GetDependenciesFromContext return the list of plugins depedencies required by this plugin.
+// Required when elements were simply listed by ChainElements to update their dependencies
+func (p *Plugin) GetDependenciesFromContext(context *ElementsType) map[string]Element {
+	if p == nil {
+		return nil
+	}
+
+	pluginRef, found := context.ref.Get(p.ExtensionName, p.Version)
+	if found {
+		for _, pluginDep := range pluginRef.Dependencies {
+			newPluginDep := NewPlugin()
+			newPluginDep.ExtensionName = pluginDep.Name
+			newPluginDep.Version = pluginDep.Version
+			p.dependencies[pluginDep.Name] = newPluginDep
+		}
+	}
+	return p.GetDependencies()
+}
+
+// GetDependencies return the list of plugins depedencies required by this plugin.
+func (p *Plugin) GetDependencies() map[string]Element {
+	return p.dependencies
+}
+
+// RemoveDependencyTo remove a bi-directionnel dependency
+func (p *Plugin) RemoveDependencyTo(depElement Element) {
+	depPlugin := depElement.(*Plugin)
+	delete(depPlugin.parents, p.Name())
+	delete(p.dependencies, depPlugin.Name())
+}
+
+// AddDependencyTo creates the bi-directionnel dependency
+func (p *Plugin) AddDependencyTo(depElement Element) {
+	depPlugin := depElement.(*Plugin)
+	// Add the dependency of current plugin to the other Element.
+	// in short, p requires depElement
+	p.dependencies[depPlugin.ExtensionName] = depPlugin
+
+	// Define the parent dependency to p
+	// In short, depPlugin is required by p
+	depPlugin.parents[p.ExtensionName] = p
 }

@@ -9,8 +9,9 @@ import (
 	goversion "github.com/hashicorp/go-version"
 )
 
+// RepositoryPlugin define the plugin from the referenced repository
 type RepositoryPlugin struct {
-	Dependencies   []RepositoryDependency
+	Dependencies   RepositoryDependencies
 	Name           string
 	Version        string
 	Title          string
@@ -105,6 +106,7 @@ func (p *RepositoryPlugin) DetermineVersion(versionConstraints map[string]govers
 	return
 }
 
+// GetVersion returns a version struct of the plugin.
 func (p *RepositoryPlugin) GetVersion() (ret VersionStruct, err error) {
 	err = ret.Set(p.Version)
 	return

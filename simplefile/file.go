@@ -102,7 +102,7 @@ func (s *SimpleFile) Read(sep string, treatData func([]string) (error)) (_ error
 		line = strings.Trim(line, " ")
 
 		if line == "" || line[0] == '#' {
-			return
+			continue
 		}
 
 		if gotrace.IsDebugMode() {
