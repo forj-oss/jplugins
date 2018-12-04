@@ -98,17 +98,17 @@ func (p *Groovy) IsFixed() (_ bool) {
 }
 
 // GetParents return the list of features which depends on this feature.
-func (p *Groovy) GetParents() (_ map[string]Element) {
+func (p *Groovy) GetParents() (_ Elements) {
 	return
 }
 
 // GetDependencies return the list of features depedencies required by this feature.
-func (p *Groovy) GetDependencies() (_ map[string]Element) {
+func (p *Groovy) GetDependencies() (_ Elements) {
 	return
 }
 
 // GetDependenciesFromContext return the list of features depedencies required by this feature.
-func (p *Groovy) GetDependenciesFromContext(*ElementsType) (_ map[string]Element) {
+func (p *Groovy) GetDependenciesFromContext(*ElementsType) (_ Elements) {
 	return
 }
 
@@ -127,4 +127,8 @@ func (p *Groovy) RemoveDependencyTo(depElement Element) {
 }
 
 func (p *Groovy) AddDependencyTo(depElement Element) {
+}
+
+func (p *Groovy) DefineLatestPossibleVersion(context *ElementsType) (_ error) {
+	return
 }

@@ -216,7 +216,7 @@ func (c *cmdCheckVersions) jenkinsUpdates(choice utils.UpdatesSelectChoice, stat
 		if err != nil {
 			return fmt.Errorf("Unable to check updates. %s", err)
 		}
-		gotrace.Trace("Identifying version from constraints...")
+
 		if err := elements.DeterminePluginsVersion(repo); err != nil {
 			return err
 		}

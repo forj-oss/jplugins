@@ -128,17 +128,17 @@ func (p *Feature) IsFixed() (_ bool) {
 }
 
 // GetParents return the list of features which depends on this feature.
-func (p *Feature) GetParents() (_ map[string]Element) {
+func (p *Feature) GetParents() (_ Elements) {
 	return
 }
 
 // GetDependencies return the list of features depedencies required by this feature.
-func (p *Feature) GetDependencies() (_ map[string]Element) {
+func (p *Feature) GetDependencies() (_ Elements) {
 	return
 }
 
 // GetDependenciesFromContext return the list of features depedencies required by this feature.
-func (p *Feature) GetDependenciesFromContext(*ElementsType) (_ map[string]Element) {
+func (p *Feature) GetDependenciesFromContext(*ElementsType) (_ Elements) {
 	return
 }
 
@@ -157,4 +157,8 @@ func (p *Feature) RemoveDependencyTo(depElement Element) {
 }
 
 func (p *Feature) AddDependencyTo(depElement Element) {
+}
+
+func (p *Feature) DefineLatestPossibleVersion(context *ElementsType) (_ error) {
+	return
 }

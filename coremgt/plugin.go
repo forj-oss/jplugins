@@ -25,9 +25,9 @@ type Plugin struct {
 	Dependencies   string `yaml:"Plugin-Dependencies"`
 	Description    string `yaml:"Specification-Title"`
 	rules          map[string]goversion.Constraints
-	fixed          bool               // true if a constraint force a version
-	parents        map[string]Element // List of parent Elements dependencies
-	dependencies   map[string]Element // List of Elements dependencies
+	fixed          bool     // true if a constraint force a version
+	parents        Elements // List of parent Elements dependencies
+	dependencies   Elements // List of Elements dependencies
 }
 
 // String return the string representation of the plugin
@@ -52,7 +52,7 @@ func (p *Plugin) String() string {
 		fixed = "FIXED:"
 	}
 
-	return fmt.Sprintf("%s:%s %s%s%s", pluginType, p.ExtensionName, fixed, p.Version, constraints)
+	return fmt.Sprintf("(%p)%s:%s %s%s%s", p, pluginType, p.ExtensionName, fixed, p.Version, constraints)
 }
 
 // GetVersion return the plugin Version struct.
@@ -258,7 +258,9 @@ func (p *Plugin) IsFixed() (_ bool) {
 }
 
 // SetVersionConstraintFromDepConstraint add a constraint to match the
-// dependency version constraints
+// dependency version constraints on plugins parent dependencies
+//
+// This function check parent plugin of the dependency given to change version constraint if needed.
 func (p *Plugin) SetVersionConstraintFromDepConstraint(context *ElementsType, depElement Element) (err error) {
 
 	depPlugin, ok := depElement.(*Plugin)
@@ -268,17 +270,36 @@ func (p *Plugin) SetVersionConstraintFromDepConstraint(context *ElementsType, de
 
 	// Loop on all versions from latest to oldest
 	for _, version := range context.ref.GetOrderedVersions(p.ExtensionName) {
+
 		// Get the plugin dependencies for this specific version from updates.
 		refPlugin, _ := context.ref.Get(p.ExtensionName, version.Original())
 
 		// Get the required plugin version for this plugin (dependency)
 		depPluginVersion := refPlugin.Dependencies.GetVersion(depPlugin.ExtensionName)
 
+		// Ignore if the version is currently higher than minimum requested.
+		if p.Version != "" {
+			if v, _ := goversion.NewVersion(p.Version); version.GreaterThan(v) {
+				gotrace.TraceLevel(2, "%s not minimum version. %s ignored.", p.Name(), version.Original())
+				continue
+			}
+		}
+		gotrace.TraceLevel(1, "Checking parent %s %s with %s dependency", p.Name(), version.Original(), depElement)
 		// If a dependency is found, check version candidature.
 		if depPluginVersion != nil {
 			// Check if the plugin dependency rule match the requirement.
-			if !depElement.IsVersionCandidate(depPluginVersion) {
+			candidate := depElement.IsVersionCandidate(depPluginVersion)
+			gotrace.TraceLevel(2, "From %s %s, %s minimum requirement is %s. Is it validated? %t", p.Name(), version.Original(), depElement.Name(), depPluginVersion.Original(), candidate)
+			if !candidate {
 				continue // Go to the earlier version
+			}
+		}
+
+		// Ignore if the version is currently higher than minimum requested.
+		if p.Version != "" {
+			if v, _ := goversion.NewVersion(p.Version); version.Equal(v) {
+				gotrace.TraceLevel(2, "Respect current rule. parent %s ignored.", p.ExtensionName)
+				return
 			}
 		}
 
@@ -286,10 +307,13 @@ func (p *Plugin) SetVersionConstraintFromDepConstraint(context *ElementsType, de
 		constraint, _ := goversion.NewConstraint("<=" + version.Original())
 
 		// Set or replace the LessOrEqualTo contraint
-		gotrace.Trace("%s is downgraded to %s due to %s.", p, version.Original(), depPlugin)
+		gotrace.TraceLevel(0, "%s is downgraded to %s due to %s.", p, version.Original(), depPlugin)
+		delete(p.rules, "GreaterOrEqualTo")
 		p.rules["LessOrEqualTo"] = constraint
 		p.Version = version.Original()
 		p.updateDependenciesRelations(context, refPlugin)
+
+		gotrace.TraceLevel(2, "New constraints %s", p)
 
 		// Do this work with the new parent version to parent of this plugin
 		for _, elementToConstrain := range p.parents {
@@ -298,7 +322,7 @@ func (p *Plugin) SetVersionConstraintFromDepConstraint(context *ElementsType, de
 				return
 			}
 		}
-		break
+		return
 	}
 	return fmt.Errorf("Unable to find a proper version of %s which match the dep need to %s", p, depElement)
 }
@@ -334,6 +358,7 @@ func (p *Plugin) updateDependenciesRelations(context *ElementsType, refPlugin *R
 	}
 }
 
+// IsVersionCandidate return true if version given respect the rule
 func (p *Plugin) IsVersionCandidate(version *goversion.Version) bool {
 	for _, rule := range p.rules {
 		if !rule.Check(version) {
@@ -343,16 +368,31 @@ func (p *Plugin) IsVersionCandidate(version *goversion.Version) bool {
 	return true
 }
 
+// DefineLatestPossibleVersion check on version history which latest version is possible from version rules given.
+func (p *Plugin) DefineLatestPossibleVersion(context *ElementsType) (_ error) {
+	Versions := context.ref.GetOrderedVersions(p.ExtensionName)
+	for _, version := range Versions {
+		if p.IsVersionCandidate(version) {
+			p.Version = version.Original()
+			if gotrace.IsDebugMode() {
+				fmt.Printf("*** Selected version %s for %s \n", p.Version, p.ExtensionName)
+			}
+			return
+		}
+	}
+	return fmt.Errorf("Unable to find a latest version for %s which respect version rules", p)
+}
+
 /******* Dependency management ************/
 
 // GetParents return the list of plugins which depends on this plugin.
-func (p *Plugin) GetParents() map[string]Element {
+func (p *Plugin) GetParents() Elements {
 	return p.parents
 }
 
 // GetDependenciesFromContext return the list of plugins depedencies required by this plugin.
 // Required when elements were simply listed by ChainElements to update their dependencies
-func (p *Plugin) GetDependenciesFromContext(context *ElementsType) map[string]Element {
+func (p *Plugin) GetDependenciesFromContext(context *ElementsType) Elements {
 	if p == nil {
 		return nil
 	}
@@ -370,7 +410,7 @@ func (p *Plugin) GetDependenciesFromContext(context *ElementsType) map[string]El
 }
 
 // GetDependencies return the list of plugins depedencies required by this plugin.
-func (p *Plugin) GetDependencies() map[string]Element {
+func (p *Plugin) GetDependencies() Elements {
 	return p.dependencies
 }
 

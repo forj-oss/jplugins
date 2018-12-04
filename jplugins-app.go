@@ -151,7 +151,9 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 
 // readFeaturesFromSimpleFormat will load a feature file and expand them to get a list of plugins/groovies/... (elements)
 func (a *jPluginsApp) readFeaturesFromSimpleFormat(featurePath, featureFile, featureURL string) (elements *core.ElementsType, err error) {
-	gotrace.Trace("Loading features...")
+	if gotrace.IsDebugMode() {
+		fmt.Println("******** Loading features and build constraints ********")
+	}
 
 	elements = core.NewElementsType()
 

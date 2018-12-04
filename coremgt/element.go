@@ -16,15 +16,16 @@ type Element interface{
 	CompleteFromContext(context *ElementsType)
 	String() string
 	IsFixed() bool
-	GetParents() map[string]Element
+	GetParents() Elements
 
-	GetDependencies() map[string]Element
-	GetDependenciesFromContext(context *ElementsType) map[string]Element
+	GetDependencies() Elements
+	GetDependenciesFromContext(context *ElementsType) Elements
 	AddDependencyTo(element Element)
 	RemoveDependencyTo(element Element)
 
 	SetVersionConstraintFromDepConstraint(context *ElementsType, element Element) error
 	IsVersionCandidate(version *goversion.Version) bool
+	DefineLatestPossibleVersion(context *ElementsType) (_ error)
 }
 
 // NewElement to create a known new element type
