@@ -132,3 +132,7 @@ func (p *Groovy) AddDependencyTo(depElement Element) {
 func (p *Groovy) DefineLatestPossibleVersion(context *ElementsType) (_ error) {
 	return
 }
+
+func (p *Groovy) AsNewPluginsStatusDetails(context *ElementsType) (sd *pluginsStatusDetails) {
+	return
+}

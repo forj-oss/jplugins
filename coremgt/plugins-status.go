@@ -97,6 +97,14 @@ func (s *PluginsStatus) SetFeaturesPath(repoPath string) error {
 	return nil
 }
 
+// NewInstall consider the installed list as newly installed.
+// So, the display updates will display it all when we newly install it.
+func (s *PluginsStatus) NewInstall() {
+	for name, plugin := range s.installed.list["plugin"] {
+		s.plugins[name] = plugin.AsNewPluginsStatusDetails(s.installed)
+	}
+}
+
 // Compare only plugins against repository.
 // TODO: Compare groovies
 func (s *PluginsStatus) Compare() (_ error) {

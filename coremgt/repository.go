@@ -130,7 +130,7 @@ func (r *Repository) Get(pluginRequested ...string) (plugin *RepositoryPlugin, f
 					versions = append(versions, versionToAdd)
 				}
 				sort.Sort(goversion.Collection(versions))
-				versionToCompare, _ := goversion.NewConstraint(">" + version)
+				versionToCompare, _ := goversion.NewConstraint(">=" + version)
 				for _, versionToCheck := range versions {
 					if versionToCompare.Check(versionToCheck) {
 						version = versionToCheck.Original()
@@ -138,6 +138,9 @@ func (r *Repository) Get(pluginRequested ...string) (plugin *RepositoryPlugin, f
 						break
 					}
 				}
+			}
+			if plugin == nil {
+				return nil, false
 			}
 			pluginInfo := r.Plugins[name]
 			plugin.Description = pluginInfo.Description

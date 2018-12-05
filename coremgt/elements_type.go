@@ -347,7 +347,7 @@ func (e *ElementsType) PrintOut(printDetails func(element Element)) {
 
 // DeterminePluginsVersion apply the updates repository ref to the list of plugins to set proper version of plugins from rules
 // Rules can change and a rule validation will be executed at the end of the process
-func (e *ElementsType) DeterminePluginsVersion(ref *Repository) (_ error) {
+func (e *ElementsType) DeterminePluginsVersion(ref *Repository) (updates *PluginsStatus, _ error) {
 	if e == nil {
 		return
 	}
@@ -358,30 +358,44 @@ func (e *ElementsType) DeterminePluginsVersion(ref *Repository) (_ error) {
 	// Setting parent plugin constraints due to fixed version plugin
 	e.defineParentConstraints()
 
-	collection := newElementsCollection(e)
-	elementsTypeOrdered, err := collection.BuildOrder()
-	if err != nil {
-		return
-	}
-
 	if gotrace.IsDebugMode() {
 		fmt.Println(" ****** Identifying latest version from constraints given *******")
 	}
 	// Build latest versions from rules given
-	for _, elements := range elementsTypeOrdered {
-		for _, element := range elements {
-			if err := element.DefineLatestPossibleVersion(e); err != nil {
-				return err
-			}
-			if err := e.addChainedElements(element); err != nil {
-				return err
+	queue := make(map[string]bool)
+
+	for {
+		round := len(queue)
+		gotrace.Trace("%d/%d (%d) elements treated.", round, len(queue), e.Length())
+
+		for _, elements := range e.list {
+			for _, element := range elements {
+				queueKey := element.GetType() + ":" + element.Name()
+				if _, found := queue[queueKey] ; found {
+					continue
+				}
+				queue[queueKey] = true
+				if err := element.DefineLatestPossibleVersion(e); err != nil {
+					return nil, err
+				}
+				if err := e.addChainedElements(element); err != nil {
+					return nil, err
+				}
 			}
 		}
+		if round == len(queue) {
+			break
+		}
 	}
+
+	updates = NewPluginsStatus(e, e.ref)
+	// Consider element list as part of a new install.
+	updates.NewInstall()
+
 	return
 }
 
-// GetRepoPlugin return a plugin
+// GetRepoPlugin return a plugin information from the updates repository
 func (e *ElementsType) GetRepoPlugin(props ...string) (ret Element) {
 	ret = NewPlugin()
 	ret.SetFrom(append([]string{pluginType}, props...)...)
@@ -424,7 +438,7 @@ func (e *ElementsType) getFixedElements() (fixedElements []Element) {
 }
 
 // setElementsRequiredVersion recursively will set an highest version following the dependency constraint given.
-// This function is called by define ParentConstraints to browse to the higher dependent elements which may need to 
+// This function is called by define ParentConstraints to browse to the higher dependent elements which may need to
 // have constraint updated.
 func (e *ElementsType) setElementsRequiredVersion(element Element, elements map[string]Element) {
 	for _, elementToConstrain := range elements {

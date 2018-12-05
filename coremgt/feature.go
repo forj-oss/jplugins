@@ -162,3 +162,7 @@ func (p *Feature) AddDependencyTo(depElement Element) {
 func (p *Feature) DefineLatestPossibleVersion(context *ElementsType) (_ error) {
 	return
 }
+
+func (p *Feature) AsNewPluginsStatusDetails(context *ElementsType) (sd *pluginsStatusDetails) {
+	return
+}

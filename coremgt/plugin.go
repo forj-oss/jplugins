@@ -383,6 +383,34 @@ func (p *Plugin) DefineLatestPossibleVersion(context *ElementsType) (_ error) {
 	return fmt.Errorf("Unable to find a latest version for %s which respect version rules", p)
 }
 
+// AsNewPluginsStatusDetails return a PluginsStatusDetails object from this plugin, considered as new.
+func (p *Plugin) AsNewPluginsStatusDetails(context *ElementsType) (sd *pluginsStatusDetails) {
+	plugin, found := context.ref.Get(p.ExtensionName, p.Version)
+	if !found {
+		return
+	}
+	sd = newPluginsStatusDetails()
+	sd.name = p.ExtensionName
+	sd.title = plugin.Title
+	version := VersionStruct{}
+
+	if v, err := goversion.NewVersion(p.Version); err != nil {
+		gotrace.Error("New version '%s' invalid. %s", plugin.Version, err)
+		return nil
+	} else if err = version.Set(v.Original()); err != nil {
+		gotrace.Error("New version '%s' invalid. %s", plugin.Version, err)
+		return nil
+	}
+
+	sd.newVersion = version
+	sd.oldVersion = VersionStruct{}
+	sd.oldVersion.Set("new")
+	if latest, found := context.ref.Get(p.ExtensionName); found {
+		sd.latest = (latest.Version == plugin.Version)
+	}
+	return
+}
+
 /******* Dependency management ************/
 
 // GetParents return the list of plugins which depends on this plugin.

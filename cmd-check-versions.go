@@ -217,14 +217,10 @@ func (c *cmdCheckVersions) jenkinsUpdates(choice utils.UpdatesSelectChoice, stat
 			return fmt.Errorf("Unable to check updates. %s", err)
 		}
 
-		if err := elements.DeterminePluginsVersion(repo); err != nil {
+		c.updates, err = elements.DeterminePluginsVersion(repo)
+		if  err != nil {
 			return err
 		}
-		elements.PrintOut(func(element core.Element) {
-			version, _ := element.GetVersion()
-			fmt.Printf("%s: %s\n", element.Name(), version)
-
-		})
 	}
 
 	return nil

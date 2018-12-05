@@ -26,6 +26,8 @@ type Element interface{
 	SetVersionConstraintFromDepConstraint(context *ElementsType, element Element) error
 	IsVersionCandidate(version *goversion.Version) bool
 	DefineLatestPossibleVersion(context *ElementsType) (_ error)
+
+	AsNewPluginsStatusDetails(context *ElementsType) (sd *pluginsStatusDetails)
 }
 
 // NewElement to create a known new element type
