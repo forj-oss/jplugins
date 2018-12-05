@@ -358,7 +358,7 @@ func (e *ElementsType) DeterminePluginsVersion(ref *Repository) (updates *Plugin
 	// Setting parent plugin constraints due to fixed version plugin
 	e.defineParentConstraints()
 
-	if gotrace.IsDebugMode() {
+/*	if gotrace.IsDebugMode() {
 		fmt.Println(" ****** Identifying latest version from constraints given *******")
 	}
 	// Build latest versions from rules given
@@ -371,7 +371,7 @@ func (e *ElementsType) DeterminePluginsVersion(ref *Repository) (updates *Plugin
 		for _, elements := range e.list {
 			for _, element := range elements {
 				queueKey := element.GetType() + ":" + element.Name()
-				if _, found := queue[queueKey] ; found {
+				if _, found := queue[queueKey]; found {
 					continue
 				}
 				queue[queueKey] = true
@@ -386,7 +386,7 @@ func (e *ElementsType) DeterminePluginsVersion(ref *Repository) (updates *Plugin
 		if round == len(queue) {
 			break
 		}
-	}
+	}*/
 
 	updates = NewPluginsStatus(e, e.ref)
 	// Consider element list as part of a new install.

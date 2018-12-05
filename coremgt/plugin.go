@@ -168,12 +168,10 @@ func (p *Plugin) Name() string {
 
 // ChainElement load plugins dependency tree from the repo
 //
+// The constraint is added as expected, but the version is the highest possible. (latest)
 func (p *Plugin) ChainElement(context *ElementsType) (ret *ElementsType, _ error) {
-	version := "latest"
-	if p.Version != "latest" {
-		version = p.Version
-	}
-	refPlugin, found := context.ref.Get(p.ExtensionName, version)
+
+	refPlugin, found := context.ref.Get(p.ExtensionName)
 	if !found {
 		return nil, fmt.Errorf("Plugin '%s' not found in the public repository", p.Name())
 	}
@@ -184,11 +182,16 @@ func (p *Plugin) ChainElement(context *ElementsType) (ret *ElementsType, _ error
 	ret.SetRepository(context.ref)
 
 	for _, dep := range refPlugin.Dependencies {
+		refDepPlugin, found := context.ref.Get(dep.Name)
+		if !found {
+			return nil, fmt.Errorf("Plugin '%s' not found in the public repository", p.Name())
+		}
 		if dep.Optionnal {
 			continue
 		}
 		plugin := NewPlugin()
 		plugin.SetFrom(pluginType, dep.Name, ">="+dep.Version)
+		plugin.Version = refDepPlugin.Version //
 		ret.AddElement(plugin)
 	}
 	return
@@ -395,10 +398,10 @@ func (p *Plugin) AsNewPluginsStatusDetails(context *ElementsType) (sd *pluginsSt
 	version := VersionStruct{}
 
 	if v, err := goversion.NewVersion(p.Version); err != nil {
-		gotrace.Error("New version '%s' invalid. %s", plugin.Version, err)
+		gotrace.Error("New version for %s '%s' invalid. %s",sd.name, plugin.Version, err)
 		return nil
 	} else if err = version.Set(v.Original()); err != nil {
-		gotrace.Error("New version '%s' invalid. %s", plugin.Version, err)
+		gotrace.Error("New version struct for %s '%s' invalid. %s",sd.name , plugin.Version, err)
 		return nil
 	}
 
@@ -407,6 +410,9 @@ func (p *Plugin) AsNewPluginsStatusDetails(context *ElementsType) (sd *pluginsSt
 	sd.oldVersion.Set("new")
 	if latest, found := context.ref.Get(p.ExtensionName); found {
 		sd.latest = (latest.Version == plugin.Version)
+		gotrace.TraceLevel(1, "%s latest %t", p.ExtensionName, sd.latest)
+	} else {
+		gotrace.TraceLevel(1, "Unable to find %s", p.ExtensionName)
 	}
 	return
 }
