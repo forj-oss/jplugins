@@ -287,6 +287,7 @@ func (e *ElementsType) Read(file string, cols int) (err error) {
 // ExtractTopElements identifies top plugins (remove all dependencies)
 func (e *ElementsType) ExtractTopElements() (identified *ElementsType) {
 	identified = NewElementsType()
+	identified.noRecursiveChain()
 
 	plugins := e.list[pluginType]
 	for _, plugin := range plugins {

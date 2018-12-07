@@ -170,7 +170,13 @@ func (p *Plugin) Name() string {
 //
 // The constraint is added as expected, but the version is the highest possible. (latest)
 func (p *Plugin) ChainElement(context *ElementsType) (ret *ElementsType, _ error) {
+	if p == nil {
+		return
+	}
 
+	if context.ref == nil {
+		return nil,  fmt.Errorf("Missing repository loaded. Load it to the ElementsType list or call ElementsType.NoRecursivChain()")
+	}
 	refPlugin, found := context.ref.Get(p.ExtensionName)
 	if !found {
 		return nil, fmt.Errorf("Plugin '%s' not found in the public repository", p.Name())

@@ -61,6 +61,7 @@ func (j *JenkinsHome) GetPlugins() (elements *ElementsType, _ error) {
 	pluginsPath := path.Join(j.homePath, jenkinsHomePluginsPath)
 
 	elements = NewElementsType()
+	elements.noRecursiveChain()
 
 	fEntries, err := ioutil.ReadDir(pluginsPath)
 
