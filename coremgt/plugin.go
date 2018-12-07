@@ -140,7 +140,7 @@ func (p *Plugin) setFrom(fields ...string) (err error) {
 }
 
 // CompleteFromContext update the plugin information from repo DB if found
-func (p *Plugin) CompleteFromContext(context *ElementsType) {
+func (p *Plugin) CompleteFromContext(context *ElementsType) (err error) {
 	if p == nil || context == nil || context.ref == nil {
 		return
 	}
@@ -154,6 +154,7 @@ func (p *Plugin) CompleteFromContext(context *ElementsType) {
 	p.JenkinsVersion = refPlugin.JenkinsVersion
 	p.Description = refPlugin.Description
 
+	return
 }
 
 // GetType return the internal type string
@@ -403,7 +404,7 @@ func (p *Plugin) AsNewPluginsStatusDetails(context *ElementsType) (sd *pluginsSt
 	sd.title = plugin.Title
 	version := VersionStruct{}
 
-	if v, err := goversion.NewVersion(p.Version); err != nil {
+	if v, err := goversion.NewVersion(plugin.Version); err != nil {
 		gotrace.Error("New version for %s '%s' invalid. %s",sd.name, plugin.Version, err)
 		return nil
 	} else if err = version.Set(v.Original()); err != nil {
@@ -420,6 +421,11 @@ func (p *Plugin) AsNewPluginsStatusDetails(context *ElementsType) (sd *pluginsSt
 	} else {
 		gotrace.TraceLevel(1, "Unable to find %s", p.ExtensionName)
 	}
+	return
+}
+
+// AsNewGrooviesStatusDetails to be removed.
+func (p *Plugin) AsNewGrooviesStatusDetails(context *ElementsType) (sd *GroovyStatusDetails) {
 	return
 }
 

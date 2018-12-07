@@ -1,9 +1,18 @@
 package coremgt
 
 import (
+	"bufio"
+	"crypto/md5"
+	"encoding/base64"
 	"fmt"
+	"io"
+	"os"
+	"path"
 	"strings"
 
+	git "github.com/forj-oss/go-git"
+
+	"github.com/forj-oss/forjj-modules/trace"
 	goversion "github.com/hashicorp/go-version"
 )
 
@@ -13,13 +22,17 @@ const (
 
 // Groovy describe details on Groovy.
 type Groovy struct {
-	Version      string
-	name         string
-	ShortName    string
-	Dependencies string
-	Description  string
-	CommitID     string
-	rules        map[string]goversion.Constraints
+	Version       string
+	name          string
+	ShortName     string
+	Dependencies  string
+	Description   string
+	CommitID      string
+	Md5           string
+	rules         map[string]goversion.Constraints
+	commitHistory []string
+
+	featureName string
 }
 
 // NewGroovy return a Groovy object
@@ -67,7 +80,27 @@ func (p *Groovy) SetFrom(fields ...string) (err error) {
 }
 
 // CompleteFromContext nothing to complete.
-func (p *Groovy) CompleteFromContext(_ *ElementsType) {
+func (p *Groovy) CompleteFromContext(context *ElementsType) (err error) {
+	if context == nil {
+		return
+	}
+	if v, found := context.supportContext[groovyType]; found {
+		if p.featureName, found = v["featureName"]; !found {
+			gotrace.Error("Invalid groovy code reference. It must be defined by feature. supportContext['featureName'] not defined.")
+			return
+		}
+	} else {
+		gotrace.Error("Invalid groovy code reference. It must be defined by feature. supportContext is nil or not defined for 'groovy', thus missing 'featureName'.")
+		return
+	}
+
+	sourcePath := path.Join(context.repoPath, p.featureName)
+
+	if err = p.defineVersion(sourcePath) ; err != nil {
+		return
+	}
+	err = p.computeM5Sum(sourcePath)
+	return
 }
 
 // GetType return the internal type string
@@ -133,6 +166,63 @@ func (p *Groovy) DefineLatestPossibleVersion(context *ElementsType) (_ error) {
 	return
 }
 
+// AsNewGrooviesStatusDetails add the current groovy as a NEW groovy in statusDetails
+func (p *Groovy) AsNewGrooviesStatusDetails(context *ElementsType) (sd *GroovyStatusDetails) {
+	sd = newGroovyStatusDetails(p.name, context.repoPath)
+	sd.name = p.name
+	sd.newMd5 = p.Md5
+	sd.newCommit = p.CommitID
+	return
+}
+
+// AsNewPluginsStatusDetails to be replaced by a renamed version.
 func (p *Groovy) AsNewPluginsStatusDetails(context *ElementsType) (sd *pluginsStatusDetails) {
+	return
+}
+
+// computeM5Sum get the groovy file md5sum
+func (p *Groovy) computeM5Sum(sourcePath string) (_ error) {
+	groovyFile := path.Join(sourcePath, p.name+".groovy")
+	fd, err := os.Open(groovyFile)
+	if err != nil {
+		return fmt.Errorf("Unable to read '%s'. %s", groovyFile, err)
+	}
+	defer fd.Close()
+
+	reader := bufio.NewReader(fd)
+
+	hash := md5.New()
+
+	if _, err := io.Copy(hash, reader); err != nil {
+		return fmt.Errorf("Unable to generate md5sum data. %s", err)
+	}
+	md5Data := base64.StdEncoding.EncodeToString(hash.Sum(nil))
+
+	p.Md5 = md5Data
+
+	return
+}
+
+// defineVersion get the latest commit ID updating the groovy file
+func (p *Groovy) defineVersion(sourcePath string) (err error) {
+	if p.commitHistory == nil {
+		err = git.RunInPath(sourcePath, func() (_ error) {
+			historyData, err := git.Get("log", "--pretty=%H", p.name+".groovy")
+			if err != nil {
+				return fmt.Errorf("Unable to get file '%s' history from GIT. %s", p.name+".groovy", err)
+			}
+			p.commitHistory = strings.Split(strings.Trim(historyData, " \n"), "\n")
+			return
+		})
+		if err != nil {
+			err = fmt.Errorf("Unable to define the groovy '%s' version (commit ID)> %s", p.name, err)
+			return
+		}
+	}
+	if len(p.commitHistory) == 0 {
+		return
+	}
+	latest := p.commitHistory[0]
+	p.CommitID = latest
 	return
 }

@@ -63,7 +63,8 @@ func (p *Feature) SetFrom(fields ...string) (err error) {
 }
 
 // CompleteFromContext nothing to complete.
-func (p *Feature) CompleteFromContext(_ *ElementsType) {
+func (p *Feature) CompleteFromContext(_ *ElementsType) (_ error) {
+	return
 }
 
 // GetType return the internal type string
@@ -84,6 +85,8 @@ func (p *Feature) ChainElement(context *ElementsType) (ret *ElementsType, _ erro
 
 	ret = NewElementsType()
 	ret.AddSupport(pluginType, groovyType)
+	ret.AddSupportContext(groovyType, "featureName", p.Name())
+	ret.SetFeaturesPath(context.repoPath)
 	ret.noRecursiveChain()
 	ret.SetRepository(context.ref)
 
@@ -164,5 +167,9 @@ func (p *Feature) DefineLatestPossibleVersion(context *ElementsType) (_ error) {
 }
 
 func (p *Feature) AsNewPluginsStatusDetails(context *ElementsType) (sd *pluginsStatusDetails) {
+	return
+}
+
+func (p *Feature) AsNewGrooviesStatusDetails(context *ElementsType) (sd *GroovyStatusDetails) {
 	return
 }

@@ -103,6 +103,9 @@ func (s *PluginsStatus) NewInstall() {
 	for name, plugin := range s.installed.list["plugin"] {
 		s.plugins[name] = plugin.AsNewPluginsStatusDetails(s.installed)
 	}
+	for name, groovy := range s.installed.list["groovy"] {
+		s.groovies[name] = groovy.AsNewGrooviesStatusDetails(s.installed)
+	}
 }
 
 // Compare only plugins against repository.

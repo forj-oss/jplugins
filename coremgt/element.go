@@ -13,7 +13,7 @@ type Element interface{
 	ChainElement(context *ElementsType) (*ElementsType, error)
 	//GetElementsFromRepo(func (name string) (*Elements, error))
 	Merge(context *ElementsType, element Element, policy int) (updated bool, err error)
-	CompleteFromContext(context *ElementsType)
+	CompleteFromContext(context *ElementsType) (err error)
 	String() string
 	IsFixed() bool
 	GetParents() Elements
@@ -28,6 +28,7 @@ type Element interface{
 	DefineLatestPossibleVersion(context *ElementsType) (_ error)
 
 	AsNewPluginsStatusDetails(context *ElementsType) (sd *pluginsStatusDetails)
+	AsNewGrooviesStatusDetails(context *ElementsType) (sd *GroovyStatusDetails)
 }
 
 // NewElement to create a known new element type

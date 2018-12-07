@@ -28,6 +28,7 @@ type ElementsType struct {
 	repoURL  []*url.URL
 	useLocal bool
 	noDeps   bool
+	supportContext map[string]map[string]string
 
 	ref *Repository
 }
@@ -37,6 +38,7 @@ func NewElementsType() (ret *ElementsType) {
 	ret = new(ElementsType)
 	ret.list = make(map[string]Elements)
 	ret.supported = []string{featureType, groovyType, pluginType}
+	ret.supportContext = make(map[string]map[string]string)
 	ret.noDeps = false
 	return
 }
@@ -271,6 +273,18 @@ func (e *ElementsType) AddSupport(elementTypes ...string) {
 	e.supported = elementTypes
 }
 
+// AddSupport register a set function for a data type given
+func (e *ElementsType) AddSupportContext(elementType, key, value string) {
+	properties := e.supportContext[elementType]
+	if properties == nil {
+		properties = make(map[string]string)
+	}
+	properties[key] = value
+	e.supportContext[elementType] = properties
+}
+
+
+
 // **************** Misc ************************************
 
 // Read the file given
@@ -359,36 +373,6 @@ func (e *ElementsType) DeterminePluginsVersion(ref *Repository) (updates *Plugin
 	// Setting parent plugin constraints due to fixed version plugin
 	e.defineParentConstraints()
 
-/*	if gotrace.IsDebugMode() {
-		fmt.Println(" ****** Identifying latest version from constraints given *******")
-	}
-	// Build latest versions from rules given
-	queue := make(map[string]bool)
-
-	for {
-		round := len(queue)
-		gotrace.Trace("%d/%d (%d) elements treated.", round, len(queue), e.Length())
-
-		for _, elements := range e.list {
-			for _, element := range elements {
-				queueKey := element.GetType() + ":" + element.Name()
-				if _, found := queue[queueKey]; found {
-					continue
-				}
-				queue[queueKey] = true
-				if err := element.DefineLatestPossibleVersion(e); err != nil {
-					return nil, err
-				}
-				if err := e.addChainedElements(element); err != nil {
-					return nil, err
-				}
-			}
-		}
-		if round == len(queue) {
-			break
-		}
-	}*/
-
 	updates = NewPluginsStatus(e, e.ref)
 	// Consider element list as part of a new install.
 	updates.NewInstall()
@@ -469,7 +453,7 @@ func (e *ElementsType) addChainedElements(element Element) (_ error) {
 	}
 
 	if gotrace.IsDebugMode() {
-		if len(elementTypeDeps.list) == 0 {
+		if elementTypeDeps == nil || len(elementTypeDeps.list) == 0 {
 			fmt.Printf("%s has no dependencies.\n", element)
 		} else {
 			fmt.Printf("%s has:\n", element)
@@ -491,48 +475,48 @@ func (e *ElementsType) addChainedElements(element Element) (_ error) {
 		err = fmt.Errorf("Unable to attach elements related to %s-%s. %s", element.GetType(), element.Name(), err)
 		return
 	}
-	if elementTypeDeps == nil {
-		return
-	}
-	for _, elementDeps := range elementTypeDeps.list {
-		for _, elementDependency := range elementDeps {
-			elementDepType := elementDependency.GetType()
-			elementDepName := elementDependency.Name()
+	if elementTypeDeps != nil {
+		for _, elementDeps := range elementTypeDeps.list {
+			for _, elementDependency := range elementDeps {
+				elementDepType := elementDependency.GetType()
+				elementDepName := elementDependency.Name()
 
-			if existingDep := e.GetElement(elementDepType, elementDepName); existingDep == nil {
-				if _, err = e.AddElement(elementDependency); err != nil {
-					return
+				if existingDep := e.GetElement(elementDepType, elementDepName); existingDep == nil {
+					if _, err = e.AddElement(elementDependency); err != nil {
+						return
+					}
+
+					// Set this elementDependency added as required by element
+					elementDependency = e.GetElement(elementDepType, elementDepName)
+					element.AddDependencyTo(elementDependency)
+				} else {
+					var v1, v2 *goversion.Version
+					v, _ := existingDep.GetVersion()
+					v1 = v.Get()
+					v, _ = elementDependency.GetVersion()
+					v2 = v.Get()
+
+					// Ensure this found dependency is attached to the current element
+					element.AddDependencyTo(existingDep)
+
+					if v2 == nil || (v1 != nil && v1.Compare(v2) >= 0) {
+						gotrace.Trace("No version change for %s. Moving to next dependency.", elementDependency.Name())
+						continue
+					}
+					if _, err := e.UpdateElement(existingDep, elementDependency); err != nil {
+						return
+					}
+
+					// Refreshing dependencies of each element dependencies
+					if gotrace.IsDebugMode() {
+						fmt.Printf("Checking %s dependencies between %s and %s\n", existingDep.Name(), v1, v2)
+					}
+					// Update dependencies tree if needed.
+					e.RefreshDependencies(existingDep, elementDependency)
 				}
-
-				// Set this elementDependency added as required by element
-				elementDependency = e.GetElement(elementDepType, elementDepName)
-				element.AddDependencyTo(elementDependency)
-			} else {
-				var v1, v2 *goversion.Version
-				v, _ := existingDep.GetVersion()
-				v1 = v.Get()
-				v, _ = elementDependency.GetVersion()
-				v2 = v.Get()
-
-				// Ensure this found dependency is attached to the current element
-				element.AddDependencyTo(existingDep)
-
-				if v2 == nil || (v1 != nil && v1.Compare(v2) >= 0) {
-					gotrace.Trace("No version change for %s. Moving to next dependency.", elementDependency.Name())
-					continue
-				}
-				if _, err := e.UpdateElement(existingDep, elementDependency); err != nil {
-					return
-				}
-
-				// Refreshing dependencies of each element dependencies
-				if gotrace.IsDebugMode() {
-					fmt.Printf("Checking %s dependencies between %s and %s\n", existingDep.Name(), v1, v2)
-				}
-				// Update dependencies tree if needed.
-				e.RefreshDependencies(existingDep, elementDependency)
 			}
 		}
+
 	}
 
 	// Cleanup old dependencies
