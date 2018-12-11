@@ -50,7 +50,9 @@ func (c *cmdInitLockfile) DoInitLockfile() {
 
 	lockData := core.NewPluginsStatus(elements, repo)
 
-	lockData.ImportInstalled(elements)
+	if elements != nil {
+		lockData.ImportInstalled(elements)
+	}
 
 	if !App.readFeatures(*c.featureRepoPath, *c.sourceFile, *c.featureRepoURL, lockData) {
 		os.Exit(1)
