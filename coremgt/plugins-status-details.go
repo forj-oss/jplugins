@@ -155,6 +155,9 @@ func (sd *pluginsStatusDetails) installIt(destPath string) (err error) {
 		return
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == 404 {
+		return fmt.Errorf("File %s not found", pluginURL)
+	}
 
 	var destfd *os.File
 	destfd, err = os.Create(destFile)
