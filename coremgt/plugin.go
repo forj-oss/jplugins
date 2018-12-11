@@ -176,7 +176,7 @@ func (p *Plugin) ChainElement(context *ElementsType) (ret *ElementsType, _ error
 	}
 
 	if context.ref == nil {
-		return nil,  fmt.Errorf("Missing repository loaded. Load it to the ElementsType list or call ElementsType.NoRecursivChain()")
+		return nil, fmt.Errorf("Missing repository loaded. Load it to the ElementsType list or call ElementsType.NoRecursivChain()")
 	}
 	refPlugin, found := context.ref.Get(p.ExtensionName)
 	if !found {
@@ -191,7 +191,8 @@ func (p *Plugin) ChainElement(context *ElementsType) (ret *ElementsType, _ error
 	for _, dep := range refPlugin.Dependencies {
 		refDepPlugin, found := context.ref.Get(dep.Name)
 		if !found {
-			return nil, fmt.Errorf("Plugin '%s' not found in the public repository", p.Name())
+			gotrace.Warning("The plugin '%s' has a dependent plugin '%s' not found in the public repository. Ignored.", p.Name(), dep.Name)
+			continue
 		}
 		if dep.Optionnal {
 			continue
@@ -217,7 +218,7 @@ func (p *Plugin) Merge(context *ElementsType, element Element, policy int) (upda
 	origVersion, _ := p.GetVersion()
 	newPlugin, ok := element.(*Plugin)
 	if !ok {
-		err = fmt.Errorf("plugin merge support only plugins element type.")
+		err = fmt.Errorf("Plugin merge support only plugins element type")
 		return
 	}
 	newVersion, _ := newPlugin.GetVersion()
@@ -405,10 +406,10 @@ func (p *Plugin) AsNewPluginsStatusDetails(context *ElementsType) (sd *pluginsSt
 	version := VersionStruct{}
 
 	if v, err := goversion.NewVersion(plugin.Version); err != nil {
-		gotrace.Error("New version for %s '%s' invalid. %s",sd.name, plugin.Version, err)
+		gotrace.Error("New version for %s '%s' invalid. %s", sd.name, plugin.Version, err)
 		return nil
 	} else if err = version.Set(v.Original()); err != nil {
-		gotrace.Error("New version struct for %s '%s' invalid. %s",sd.name , plugin.Version, err)
+		gotrace.Error("New version struct for %s '%s' invalid. %s", sd.name, plugin.Version, err)
 		return nil
 	}
 

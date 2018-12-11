@@ -87,7 +87,9 @@ func (c *cmdCheckVersions) doCheckInstalled() {
 			log.Fatalf("Unable to export. %s", err)
 		}
 	}
-	fmt.Println(len(repo.Plugins), "plugins/groovies loaded.")
+	if repo != nil {
+		fmt.Println(len(repo.Plugins), "plugins/groovies loaded.")
+	}
 	fmt.Println(App.installedElements.Length(), "plugins/groovies installed.")
 }
 
@@ -173,6 +175,7 @@ func (c *cmdCheckVersions) identifySource() (choices *utils.UpdatesSelect) {
 // localJenkinsHomeUpdates check local files against Jenkins home
 func (c *cmdCheckVersions) localJenkinsHomeUpdates(choice utils.UpdatesSelectChoice, states map[string]bool) error {
 	gotrace.Info(choice.Choice)
+	gotrace.Warning("This use case is currently not available. It will be implemented later.")
 	return nil
 }
 
@@ -218,7 +221,7 @@ func (c *cmdCheckVersions) jenkinsUpdates(choice utils.UpdatesSelectChoice, stat
 		}
 
 		c.updates, err = elements.DeterminePluginsVersion(repo)
-		if  err != nil {
+		if err != nil {
 			return err
 		}
 	}
