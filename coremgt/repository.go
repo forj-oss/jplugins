@@ -26,9 +26,9 @@ type Repository struct {
 }
 
 type RepositoryDependency struct {
-	Name      string
-	Optionnal bool
-	Version   string
+	Name     string
+	Optional bool
+	Version  string
 }
 
 type RepositoryPlugins struct {

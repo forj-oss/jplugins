@@ -138,7 +138,7 @@ func (s *PluginsStatus) Compare() (_ error) {
 		}
 
 		for _, dep := range refPlugin.Dependencies {
-			if dep.Optionnal {
+			if dep.Optional {
 				return
 			}
 			if _, found = elements[dep.Name]; !found {
@@ -424,7 +424,7 @@ func (s *PluginsStatus) CheckPlugin(name, versionConstraints string, parentDepen
 	}
 
 	for _, dep := range refPlugin.Dependencies {
-		if dep.Optionnal {
+		if dep.Optional {
 			continue
 		}
 		s.CheckPlugin(dep.Name, dep.Version, plugin)

@@ -194,7 +194,7 @@ func (p *Plugin) ChainElement(context *ElementsType) (ret *ElementsType, _ error
 			gotrace.Warning("The plugin '%s' has a dependent plugin '%s' not found in the public repository. Ignored.", p.Name(), dep.Name)
 			continue
 		}
-		if dep.Optionnal {
+		if dep.Optional {
 			continue
 		}
 		plugin := NewPlugin()
