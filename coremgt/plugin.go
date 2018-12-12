@@ -24,6 +24,7 @@ type Plugin struct {
 	LongName       string `yaml:"Long-Name"`
 	Dependencies   string `yaml:"Plugin-Dependencies"`
 	Description    string `yaml:"Specification-Title"`
+	checkSumSha256 string 
 	rules          map[string]goversion.Constraints
 	fixed          bool     // true if a constraint force a version
 	parents        Elements // List of parent Elements dependencies
@@ -153,6 +154,7 @@ func (p *Plugin) CompleteFromContext(context *ElementsType) (err error) {
 	p.ShortName = refPlugin.Name
 	p.JenkinsVersion = refPlugin.JenkinsVersion
 	p.Description = refPlugin.Description
+	p.checkSumSha256 = refPlugin.Sha256Version
 
 	return
 }

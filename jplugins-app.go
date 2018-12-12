@@ -215,6 +215,7 @@ func (a *jPluginsApp) readFromSimpleFormat(filepath, fileName string) (elements 
 
 	elements.AddSupport("plugin", "groovy")
 	elements.AddSupportContext("groovy", "noMoreContext", "true")
+	elements.SetRepository(a.repository)
 
 	err := elements.Read(file, 3)
 	if err != nil {

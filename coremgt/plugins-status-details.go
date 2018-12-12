@@ -1,6 +1,8 @@
 package coremgt
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,15 +14,17 @@ import (
 )
 
 type pluginsStatusDetails struct {
-	name          string
-	title         string
-	oldVersion    VersionStruct
-	newVersion    VersionStruct
-	minDepVersion VersionStruct
-	minDepName    string
-	latest        bool
-	rules         map[string]goversion.Constraints
-	preInstalled  bool
+	name             string
+	title            string
+	oldVersion       VersionStruct
+	newVersion       VersionStruct
+	sha256Version    string
+	checkSumVerified bool
+	minDepVersion    VersionStruct
+	minDepName       string
+	latest           bool
+	rules            map[string]goversion.Constraints
+	preInstalled     bool
 }
 
 func newPluginsStatusDetails() (ret *pluginsStatusDetails) {
@@ -166,12 +170,28 @@ func (sd *pluginsStatusDetails) installIt(destPath string) (err error) {
 	}
 	defer destfd.Close()
 
-	_, err = io.Copy(destfd, resp.Body)
+	sha256File := sha256.New()
+	// write to sha256File while reading the data from updates
+	teeFile := io.TeeReader(resp.Body, sha256File)
+
+	// Execute the copy from updates and do the sha256 at the same time.
+	_, err = io.Copy(destfd, teeFile)
 	if err != nil {
 		return fmt.Errorf("Unable to copy %s to %s. %s", pluginURL, destFile, err)
 	}
 
-	gotrace.Trace("Copied: %s => %s", pluginURL, destFile)
+	downloadedSHA256 := base64.StdEncoding.EncodeToString(sha256File.Sum(nil))
+	if sd.sha256Version != "" {
+		if sd.sha256Version != downloadedSHA256 {
+			return fmt.Errorf("Failed to copy %s to %s. %s has an invalid check sum. Expect '%s'. Got '%s'", pluginURL, destFile, path.Base(sd.name)+".hpi", sd.sha256Version, downloadedSHA256)
+		}
+		sd.checkSumVerified = true
+	} else {
+		sd.sha256Version = downloadedSHA256
+		gotrace.Trace("%s checksum not checked.", pluginURL)
+	}
+
+	gotrace.Trace("Copied: %s => %s - sha256:%s", pluginURL, destFile, downloadedSHA256)
 
 	return nil
 }
