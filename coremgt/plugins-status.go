@@ -176,6 +176,7 @@ func (s *PluginsStatus) addPlugin(version VersionStruct, pluginRef *RepositoryPl
 	}
 
 	ret = newPluginsStatusDetails().initFromRef(version, pluginRef)
+	ret.sha256Version = pluginRef.Sha256Version
 	s.plugins[pluginRef.Name] = ret
 
 	return

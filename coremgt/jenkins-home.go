@@ -196,18 +196,25 @@ func (j *JenkinsHome) install(elementsType *ElementsType, featureRepoPath string
 
 	iCount := 0
 	iMaxName := 0
+	iMaxVersion := 0
 	for elementType, elements := range elementsType.list {
-		for name := range elements {
+		for name, element := range elements {
 			value := elementType + ":" + name
 			elementsList[iCount] = value
 			if size := len(value); size > iMaxName {
 				iMaxName = size
+			}
+			if plugin, ok := element.(*Plugin); ok {
+				if size := len(plugin.Version); size > iMaxVersion {
+					iMaxVersion = size
+				}
 			}
 			iCount++
 		}
 	}
 
 	nameFormat := "- %-" + strconv.Itoa(iMaxName) + "s ... "
+	pluginVersionFormat := "%-" + strconv.Itoa(iMaxVersion) + "s"
 
 	iCount = 0
 	sort.Strings(elementsList)
@@ -260,6 +267,7 @@ func (j *JenkinsHome) install(elementsType *ElementsType, featureRepoPath string
 			pluginObj := newPluginsStatusDetails()
 			pluginObj.setVersion(plugin.Version)
 			pluginObj.name = plugin.ExtensionName
+			pluginObj.sha256Version = plugin.checkSumSha256
 			if !gotrace.IsDebugMode() {
 				fmt.Printf(nameFormat, displayName)
 			}
@@ -270,7 +278,11 @@ func (j *JenkinsHome) install(elementsType *ElementsType, featureRepoPath string
 				iCountPlugin++
 				iCount++
 				if !gotrace.IsDebugMode() {
-					fmt.Printf(" installed - %s\n", plugin.Version)
+					notVerified := ""
+					if !pluginObj.checkSumVerified {
+						notVerified = " not verified!"
+					}
+					fmt.Printf(" installed - "+pluginVersionFormat+" sha256:%s%s\n", plugin.Version, pluginObj.sha256Version, notVerified)
 				}
 			}
 		}
