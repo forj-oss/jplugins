@@ -8,9 +8,15 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"time"
 
 	"github.com/forj-oss/forjj-modules/trace"
 	goversion "github.com/hashicorp/go-version"
+)
+
+const (
+	retrySleepTime = 30 * time.Second
+	retryLimit     = 3
 )
 
 type pluginsStatusDetails struct {
@@ -154,11 +160,24 @@ func (sd *pluginsStatusDetails) installIt(destPath string) (err error) {
 	pluginURL := JenkinsRepoURL + "/" + JenkinsPluginRepo + "/" + sd.name + "/" + sd.newVersion.String() + "/" + path.Base(sd.name) + ".hpi"
 	destFile := path.Join(destPath, path.Base(sd.name)+".hpi")
 
-	if resp, err = http.Get(pluginURL); err != nil {
-		err = fmt.Errorf("Unable to read '%s'. %s", pluginURL, err)
-		return
+	retry := 0
+	for {
+		if resp, err = http.Get(pluginURL); err == nil {
+			break
+		}
+
+		if retry > retryLimit {
+			err = fmt.Errorf("Unable to read '%s'. %s", pluginURL, err)
+			return
+
+		}
+		retry++
+		time.Sleep(retrySleepTime)
+		fmt.Printf("%d ", retry)
 	}
+
 	defer resp.Body.Close()
+
 	if resp.StatusCode == 404 {
 		return fmt.Errorf("File %s not found", pluginURL)
 	}
