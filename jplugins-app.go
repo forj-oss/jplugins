@@ -215,7 +215,7 @@ func (a *jPluginsApp) readFromSimpleFormat(filepath, fileName string) (elements 
 
 	elements.AddSupport("plugin", "groovy")
 	elements.AddSupportContext("groovy", "noMoreContext", "true")
-	
+
 	err := elements.Read(file, 3)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open file simple file format'%s'. %s", file, err)
@@ -267,12 +267,12 @@ func (a *jPluginsApp) saveVersionAsPreInstalled(jenkinsHomePath string, plugins 
 
 // setVersion define the current jplugins version.
 func (a *jPluginsApp) setVersion() {
-	var version string
+	version := "jplugins"
 
 	if PRERELEASE {
-		version = " pre-release V" + VERSION
+		version += " pre-release V" + VERSION
 	} else {
-		version = "forjj V" + VERSION
+		version += " V" + VERSION
 	}
 
 	if build_branch != "master" {
