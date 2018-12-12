@@ -1,4 +1,4 @@
-package main
+package coremgt
 
 import (
 	"bufio"
@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"jplugins/simplefile"
 
 	"github.com/forj-oss/utils"
 
@@ -17,37 +18,59 @@ import (
 	"github.com/forj-oss/forjj-modules/trace"
 )
 
-type pluginsStatus struct {
+// PluginsStatus represents the jenkins update status
+type PluginsStatus struct {
 	plugins       map[string]*pluginsStatusDetails
-	groovies      map[string]*groovyStatusDetails
-	pluginsStatus map[string]*pluginsStatusDetails
-	installed     plugins
-	ref           *repository
+	groovies      map[string]*GroovyStatusDetails
+	PluginsStatus map[string]*pluginsStatusDetails
+	installed     *ElementsType
+	ref           *Repository
 	repoPath      string
 	repoURL       []*url.URL
 	useLocal      bool
 }
 
-func newPluginsStatus(installed plugins, ref *repository) (pluginsCompared *pluginsStatus) {
-	pluginsCompared = new(pluginsStatus)
+// NewPluginsStatus creates an a plugin update status with a Ref repository
+func NewPluginsStatus(installed *ElementsType, ref *Repository) (pluginsCompared *PluginsStatus) {
+	pluginsCompared = new(PluginsStatus)
 	pluginsCompared.plugins = make(map[string]*pluginsStatusDetails)
-	pluginsCompared.groovies = make(map[string]*groovyStatusDetails)
+	pluginsCompared.groovies = make(map[string]*GroovyStatusDetails)
 	pluginsCompared.installed = installed
 	pluginsCompared.ref = ref
 	pluginsCompared.repoURL = make([]*url.URL, 0, 3)
 	return
 }
 
-// setLocal set the useLocal to true
+// WriteSimple write list of plugins and groovies in a simple file format.
+func (s *PluginsStatus) WriteSimple(file string) (err error) {
+	lockFile := simplefile.NewSimpleFile(file, 3)
+
+	for name, plugin := range s.plugins {
+		lockFile.AddWithKeyString("1-" + name, "plugin", name, plugin.newVersion.String())
+	}
+	for name, groovy := range s.groovies {
+		lockFile.AddWithKeyString("2-" + name, "groovy", name, groovy.newCommit)
+	}
+
+	err = lockFile.WriteSorted(":")
+	if err != nil {
+		err = fmt.Errorf("Unable to write '%s'. %s", file, err)
+	}
+	return
+}
+
+// SetLocal set the useLocal to true
 // When set to true, jplugin do not clone a remote repo URL to store on cache
-func (s *pluginsStatus) setLocal() {
+func (s *PluginsStatus) SetLocal() {
 	if s == nil {
 		return
 	}
 	s.useLocal = true
 }
 
-func (s *pluginsStatus) setFeaturesRepoURL(repoURL string) error {
+// SetFeaturesRepoURL validate and store the repoURL
+// It can be executed several times to store multiple URLs
+func (s *PluginsStatus) SetFeaturesRepoURL(repoURL string) error {
 	if s == nil {
 		return nil
 	}
@@ -60,7 +83,8 @@ func (s *pluginsStatus) setFeaturesRepoURL(repoURL string) error {
 	return nil
 }
 
-func (s *pluginsStatus) setFeaturesPath(repoPath string) error {
+// SetFeaturesPath defines where a features repository is located like `jenkins-install-inits`
+func (s *PluginsStatus) SetFeaturesPath(repoPath string) error {
 	if s == nil {
 		return nil
 	}
@@ -73,15 +97,25 @@ func (s *pluginsStatus) setFeaturesPath(repoPath string) error {
 	return nil
 }
 
-// compare only plugins
-func (s *pluginsStatus) compare() {
-	installed := s.installed
+// NewInstall consider the installed list as newly installed.
+// So, the display updates will display it all when we newly install it.
+func (s *PluginsStatus) NewInstall() {
+	for name, plugin := range s.installed.list["plugin"] {
+		s.plugins[name] = plugin.AsNewPluginsStatusDetails(s.installed)
+	}
+	for name, groovy := range s.installed.list["groovy"] {
+		s.groovies[name] = groovy.AsNewGrooviesStatusDetails(s.installed)
+	}
+}
+
+// Compare only plugins against repository.
+// TODO: Compare groovies
+func (s *PluginsStatus) Compare() (_ error) {
+	
+	elements := s.installed.list[pluginType]
 	ref := s.ref
-	for name, plugin := range installed {
-		if plugin.elementType != "plugin" {
-			continue
-		}
-		refPlugin, found := ref.get(name)
+	for name, plugin := range elements {
+		refPlugin, found := ref.Get(name)
 		if !found {
 			s.obsolete(plugin)
 			continue
@@ -95,18 +129,22 @@ func (s *pluginsStatus) compare() {
 			continue
 		} else {
 			if curVer.Get().LessThan(latestVer.Get()) {
-				s.addPlugin(plugin.Version, refPlugin)
+				version, err := plugin.GetVersion()
+				if err != nil {
+					return err
+				}
+				s.addPlugin(version, refPlugin)
 			}
 		}
 
 		for _, dep := range refPlugin.Dependencies {
-			if dep.Optionnal {
+			if dep.Optional {
 				return
 			}
-			if _, found = installed[dep.Name]; !found {
+			if _, found = elements[dep.Name]; !found {
 
-				if p, found := ref.get(dep.Name); found {
-					s.addPlugin("new", p)
+				if p, found := ref.Get(dep.Name); found {
+					s.addPlugin(VersionStruct{}, p)
 				} else {
 					gotrace.Trace("Internal repo error: From '%s', dependency '%s' has not been found.", name, dep.Name)
 					continue
@@ -114,10 +152,11 @@ func (s *pluginsStatus) compare() {
 			}
 		}
 	}
+	return nil
 }
 
 // chooseNewVersion change the default new version of a locked plugin
-func (s *pluginsStatus) chooseNewVersion(name, version string) (_ bool) {
+func (s *PluginsStatus) chooseNewVersion(name, version string) (_ bool) {
 	pluginLock, found := s.plugins[name]
 	if !found {
 		return
@@ -127,9 +166,9 @@ func (s *pluginsStatus) chooseNewVersion(name, version string) (_ bool) {
 	return true
 }
 
-// set do add/update a plugin version to the pluginsStatus structure
+// set do add/update a plugin version to the PluginsStatus structure
 // The version given is the current version use.
-func (s *pluginsStatus) addPlugin(version string, pluginRef *repositoryPlugin) (ret *pluginsStatusDetails) {
+func (s *PluginsStatus) addPlugin(version VersionStruct, pluginRef *RepositoryPlugin) (ret *pluginsStatusDetails) {
 	ret, found := s.plugins[pluginRef.Name]
 
 	if found {
@@ -142,7 +181,7 @@ func (s *pluginsStatus) addPlugin(version string, pluginRef *repositoryPlugin) (
 	return
 }
 
-func (s *pluginsStatus) addGroovy(name string, sourcePath string) (ret *groovyStatusDetails) {
+func (s *PluginsStatus) addGroovy(name string, sourcePath string) (ret *GroovyStatusDetails) {
 	groovy, found := s.groovies[name]
 
 	if !found {
@@ -152,17 +191,18 @@ func (s *pluginsStatus) addGroovy(name string, sourcePath string) (ret *groovySt
 	return groovy
 }
 
-func (s *pluginsStatus) obsolete(plugin *elementManifest) {
-	_, found := s.plugins[plugin.Name]
+func (s *PluginsStatus) obsolete(plugin Element) {
+	_, found := s.plugins[plugin.Name()]
 
 	if found {
 		return
 	}
 
-	s.plugins[plugin.Name] = newPluginsStatusDetails().initAsObsolete(plugin)
+	s.plugins[plugin.Name()] = newPluginsStatusDetails().initAsObsolete(plugin)
 }
 
-func (s *pluginsStatus) displayUpdates() (_ bool) {
+// DisplayUpdates show updates as result
+func (s *PluginsStatus) DisplayUpdates() (_ bool) {
 	if s == nil {
 		return
 	}
@@ -172,7 +212,7 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 		return true
 	}
 
-	s.pluginsStatus = make(map[string]*pluginsStatusDetails)
+	s.PluginsStatus = make(map[string]*pluginsStatusDetails)
 	pluginsList, iMaxTitle := s.sortPlugins()
 
 	fmt.Print("\nPlugins:\n==========\n+-- New plugin\n|+- Latest version\nvv\n")
@@ -180,7 +220,7 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 	iCountUpdated := 0
 	iCountNew := 0
 	for _, title := range pluginsList {
-		plugin := s.pluginsStatus[title]
+		plugin := s.PluginsStatus[title]
 		if plugin == nil {
 			continue
 		}
@@ -244,38 +284,39 @@ func (s *pluginsStatus) displayUpdates() (_ bool) {
 	return true
 }
 
-func (s *pluginsStatus) importInstalled(pluginsData plugins) {
+// ImportInstalled import a list of plugins considered as pre-installed
+// It stores the list of plugins and constraints '>=' in the structure, so those plugins are installed at minimum to that list.
+func (s *PluginsStatus) ImportInstalled(elements *ElementsType) {
+
+	pluginsData := elements.list[pluginType]
 	for name, plugin := range pluginsData {
 		if _, found := s.plugins[name]; found {
 			gotrace.Warning("plugin '%s' is duplicated. Ignored. FYI, it is better to extract pre-installed version list from a fresh jenkins installation, like with Docker.", name)
 			continue
 		}
 
-		pluginRef, found := s.ref.get(name)
+		pluginRef, found := s.ref.Get(name)
 		if !found {
 			s.plugins[name] = newPluginsStatusDetails().
 				initAsObsolete(plugin)
 		} else {
+			version, _ := plugin.GetVersion()
 			s.plugins[name] = newPluginsStatusDetails().
-				initFromRef(plugin.Version, pluginRef).
+				initFromRef(version, pluginRef).
 				setAsPreInstalled().
-				addConstraint(">=" + plugin.Version)
+				addConstraint(">=" + version.String())
 		}
 	}
 }
 
-func (s *pluginsStatus) checkElement(line string, split func(string, string, string)) {
+// CheckElement call split function and ensure a type and a name are given.
+func CheckElement(fields []string, split func(string, string, string)) {
 	var ftype, fname string
 	var fversion string
 
-	if line == "" || line[0] == '#' {
-		return
-	}
-
-	fields := strings.Split(line, ":")
 	switch len(fields) {
 	case 1:
-		gotrace.Warning("Line %s: Line format is incorrect. It should be <'plugin'|'feature'>:<plugin Name>[:<version>]", line)
+		gotrace.Warning("Line format is incorrect. It should be <'plugin'|'feature'>:<plugin Name>[:<version>]")
 		return
 	case 2:
 		ftype = strings.Trim(fields[0], " ")
@@ -287,10 +328,19 @@ func (s *pluginsStatus) checkElement(line string, split func(string, string, str
 	}
 
 	split(ftype, fname, fversion)
-
 }
 
-func (s *pluginsStatus) checkFeature(name string) (_ error) {
+// CheckElementLine analyzes a line and split with the split function.
+func (s *PluginsStatus) CheckElementLine(line string, split func(string, string, string)) {
+	if line == "" || line[0] == '#' {
+		return
+	}
+
+	fields := strings.Split(line, ":")
+	CheckElement(fields, split)
+}
+
+func (s *PluginsStatus) CheckFeature(name string) (_ error) {
 	if s == nil {
 		return
 	}
@@ -317,15 +367,15 @@ func (s *pluginsStatus) checkFeature(name string) (_ error) {
 	fileScan := bufio.NewScanner(fd)
 	for fileScan.Scan() {
 		line := strings.Trim(fileScan.Text(), " \n")
-		if gotrace.IsInfoMode() {
+		if gotrace.IsDebugMode() {
 			fmt.Printf("== >> %s ==\n", line)
 		}
-		s.checkElement(line, func(ftype, fname, version string) {
+		s.CheckElementLine(line, func(ftype, fname, version string) {
 			switch ftype {
 			case "groovy":
-				err = s.checkGroovy(path.Join(name, fname), s.repoPath)
+				err = s.CheckGroovy(path.Join(name, fname), s.repoPath)
 			case "plugin":
-				err = s.checkPlugin(fname, version, nil)
+				err = s.CheckPlugin(fname, version, nil)
 			default:
 				gotrace.Warning("feature type '%s' is currently not supported. Ignored.", ftype)
 				return
@@ -338,31 +388,32 @@ func (s *pluginsStatus) checkFeature(name string) (_ error) {
 	return err
 }
 
-func (s *pluginsStatus) checkGroovy(name, groovyPath string) error {
+func (s *PluginsStatus) CheckGroovy(name, groovyPath string) error {
 
 	groovy, found := s.groovies[name]
 	if !found {
 		if groovy = s.addGroovy(name, groovyPath); groovy == nil {
 			return fmt.Errorf("Unable to add %s several times", name)
 		}
-		gotrace.Info("New groovy '%s' identified.", name)
+		gotrace.Trace("New groovy '%s' identified.", name)
 		s.groovies[name] = groovy
 	}
 	return nil
 }
 
-func (s *pluginsStatus) checkPlugin(name, versionConstraints string, parentDependency *pluginsStatusDetails) error {
-	refPlugin, found := s.ref.get(name)
+func (s *PluginsStatus) CheckPlugin(name, versionConstraints string, parentDependency *pluginsStatusDetails) error {
+	refPlugin, found := s.ref.Get(name)
 	if !found {
 		return fmt.Errorf("Plugin '%s' not found in the public repository", name)
 	}
 
 	plugin, found := s.plugins[name]
 	if !found {
-		if plugin = s.addPlugin("new", refPlugin); plugin == nil {
+		if plugin = s.addPlugin(VersionStruct{}, refPlugin); plugin == nil {
 			return fmt.Errorf("Unable to add %s several times", name)
 		}
-		gotrace.Info("New plugin '%s' identified.", name)
+		plugin.oldVersion.Set("new")
+		gotrace.Trace("New plugin '%s' identified.", name)
 	}
 
 	if versionConstraints != "" {
@@ -374,18 +425,18 @@ func (s *pluginsStatus) checkPlugin(name, versionConstraints string, parentDepen
 	}
 
 	for _, dep := range refPlugin.Dependencies {
-		if dep.Optionnal {
+		if dep.Optional {
 			continue
 		}
-		s.checkPlugin(dep.Name, dep.Version, plugin)
+		s.CheckPlugin(dep.Name, dep.Version, plugin)
 	}
 	return nil
 }
 
-// definePluginsVersion will apply latest version of each plugin except if jplugins.lst or *.desc apply a constraints
-func (s *pluginsStatus) definePluginsVersion() (_ bool) {
+// DefinePluginsVersion will apply latest version of each plugin except if jplugins.lst or *.desc apply a constraints
+func (s *PluginsStatus) DefinePluginsVersion() (_ bool) {
 	for name, plugin := range s.plugins {
-		refPlugin, found := s.ref.get(name)
+		refPlugin, found := s.ref.Get(name)
 		if !found {
 			gotrace.Error("Plugin '%s' not found in the public repository. Ignored.", name)
 			return
@@ -409,10 +460,10 @@ func (s *pluginsStatus) definePluginsVersion() (_ bool) {
 	return true
 }
 
-func (s *pluginsStatus) checkMinDep() (_ bool) {
+func (s *PluginsStatus) CheckMinDep() (_ bool) {
 	// Detect dependency request issue
 	for name, plugin := range s.plugins {
-		refplugin, _ := s.ref.get(name)
+		refplugin, _ := s.ref.Get(name)
 
 		for _, dep := range refplugin.Dependencies {
 			depPlugin := s.plugins[dep.Name]
@@ -430,7 +481,7 @@ func (s *pluginsStatus) checkMinDep() (_ bool) {
 		curVersion := plugin.newVersion.Get()
 		gotrace.Trace("%s: Testing selected version (%s) with dependencies constraints '%s'", name, curVersion, minVersion)
 		if curVersion.LessThan(minVersion) {
-			refplugin, _ := s.ref.get(name)
+			refplugin, _ := s.ref.Get(name)
 			gotrace.Error("%s: Your settings has fixed %s as latest acceptable version. (latest is %s) But %sso, the dependencies requires an higher version %s. "+
 				"You have to fix it. Update %s to newer version or downgrade the dependency to lower version to accept %s:%s",
 				name, plugin.newVersion, refplugin.Version, plugin.minDepName, plugin.minDepVersion, name, name, plugin.newVersion)
@@ -440,7 +491,7 @@ func (s *pluginsStatus) checkMinDep() (_ bool) {
 	return true
 }
 
-func (s *pluginsStatus) sortPlugins() (pluginsList []string, maxTitle int) {
+func (s *PluginsStatus) sortPlugins() (pluginsList []string, maxTitle int) {
 	pluginsList = make([]string, len(s.plugins))
 	iCount := 0
 	for pluginName, plugin := range s.plugins {
@@ -449,7 +500,7 @@ func (s *pluginsStatus) sortPlugins() (pluginsList []string, maxTitle int) {
 			continue
 		}
 		pluginsList[iCount] = plugin.title
-		s.pluginsStatus[plugin.title] = plugin
+		s.PluginsStatus[plugin.title] = plugin
 		if val := len(plugin.title) + len(plugin.name); val > maxTitle {
 			maxTitle = val
 		}
@@ -457,4 +508,9 @@ func (s *pluginsStatus) sortPlugins() (pluginsList []string, maxTitle int) {
 	}
 	sort.Strings(pluginsList)
 	return
+}
+
+// PluginsLength return the number of plugins candidate for updates
+func (s *PluginsStatus) PluginsLength() int {
+	return len(s.plugins)
 }

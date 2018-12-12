@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/alecthomas/kingpin"
+	"github.com/forj-oss/forjj-modules/trace"
 )
 
 type cmdListInstalled struct {
@@ -13,14 +14,17 @@ type cmdListInstalled struct {
 }
 
 func (c *cmdListInstalled) doListInstalled() {
-	if !App.readFromJenkins(*c.jenkinsHomePath) {
+	App.setJenkinsHome(*c.jenkinsHomePath)
+	elements, err := App.readFromJenkins()
+	if err != nil {
+		gotrace.Error("%s", err)
 		os.Exit(1)
 	}
 	if *App.listInstalled.preInstalled {
-		if !App.saveVersionAsPreInstalled(*c.jenkinsHomePath, App.installedElements) {
+		if !App.saveVersionAsPreInstalled(*c.jenkinsHomePath, elements) {
 			os.Exit(1)
 		}
 		return
 	}
-	App.printOutVersion(App.installedElements)
+	App.printOutVersion(elements)
 }

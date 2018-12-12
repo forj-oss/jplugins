@@ -1,43 +1,17 @@
 package main
 
 import (
-	"os"
-	"path"
-
 	"github.com/alecthomas/kingpin"
 )
 
 type cmdInit struct {
 	cmd              *kingpin.CmdClause
-	preInstalledPath *string
-	sourceFile       *string
-	lockFile         *string
-	featureRepoPath  *string
-	featureRepoURL   *string
+	lockfile         cmdInitLockfile
+	features         cmdInitFeatures
 }
 
-// doInit read `jplugins-preinstalled.lst` and `jplugins-features.yaml` to create a lock file
-func (c *cmdInit) doInit() {
-	App.repository = NewRepository()
-	repo := App.repository
-	if !repo.loadFrom() {
-		os.Exit(1)
-	}
-
-	if !App.readFromSimpleFormat(path.Join(*c.preInstalledPath, preInstalledFileName)) {
-		os.Exit(1)
-	}
-
-	lockData := newPluginsStatus(App.installedElements, repo)
-
-	lockData.importInstalled(App.installedElements)
-
-	if !App.readFeatures(*c.featureRepoPath, *c.sourceFile, *c.featureRepoURL, lockData) {
-		os.Exit(1)
-	}
-
-	if !App.writeLockFile(*c.lockFile, lockData) {
-		os.Exit(1)
-	}
-
+func (c *cmdInit) init() {
+	c.cmd = App.app.Command("init", "Initialize files to use jplugins.")
+	c.lockfile.init(c.cmd)
+	c.features.init(c.cmd)
 }

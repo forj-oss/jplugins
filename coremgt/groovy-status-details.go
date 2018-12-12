@@ -1,4 +1,4 @@
-package main
+package coremgt
 
 import (
 	"bufio"
@@ -15,7 +15,8 @@ import (
 	"github.com/forj-oss/forjj-modules/trace"
 )
 
-type groovyStatusDetails struct {
+// GroovyStatusDetails contains groovy update status
+type GroovyStatusDetails struct {
 	name          string
 	newMd5        string
 	oldMd5        string
@@ -25,14 +26,14 @@ type groovyStatusDetails struct {
 	sourcePath    string
 }
 
-func newGroovyStatusDetails(name, sourcePath string) (ret *groovyStatusDetails) {
-	ret = new(groovyStatusDetails)
+func newGroovyStatusDetails(name, sourcePath string) (ret *GroovyStatusDetails) {
+	ret = new(GroovyStatusDetails)
 	ret.name = name
 	ret.sourcePath = sourcePath
 	return
 }
 
-func (gsd *groovyStatusDetails) computeM5Sum(bNew bool) (_ bool) {
+func (gsd *GroovyStatusDetails) computeM5Sum(bNew bool) (_ bool) {
 	groovyFile := path.Join(gsd.sourcePath, gsd.name+".groovy")
 	fd, err := os.Open(groovyFile)
 	if err != nil {
@@ -60,7 +61,7 @@ func (gsd *groovyStatusDetails) computeM5Sum(bNew bool) (_ bool) {
 	return true
 }
 
-func (gsd *groovyStatusDetails) defineVersion(bNew bool) (_ bool) {
+func (gsd *GroovyStatusDetails) defineVersion(bNew bool) (_ bool) {
 	if gsd.commitHistory == nil {
 		err := git.RunInPath(gsd.sourcePath, func() (_ error) {
 			historyData, err := git.Get("log", "--pretty=%H", gsd.name+".groovy")
@@ -87,7 +88,7 @@ func (gsd *groovyStatusDetails) defineVersion(bNew bool) (_ bool) {
 	return true
 }
 
-func (gsd *groovyStatusDetails) installIt(destPath string) error {
+func (gsd *GroovyStatusDetails) installIt(destPath string) error {
 	git.RunInPath(gsd.sourcePath, func() error {
 		if git.Do("checkout", gsd.newCommit) != 0 {
 			return fmt.Errorf("Unable to checkout version %s (commit ID) for %s", gsd.newCommit, gsd.name+".groovy")

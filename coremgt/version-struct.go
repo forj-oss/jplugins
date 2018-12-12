@@ -1,4 +1,4 @@
-package main
+package coremgt
 
 import (
 	"fmt"
@@ -7,16 +7,16 @@ import (
 	goversion "github.com/hashicorp/go-version"
 )
 
-type versionStruct struct {
+type VersionStruct struct {
 	original string
 	version  *goversion.Version
 }
 
-func (v versionStruct) String() string {
+func (v VersionStruct) String() string {
 	return v.original
 }
 
-func (v *versionStruct) Set(value string) (err error) {
+func (v *VersionStruct) Set(value string) (err error) {
 	if v == nil {
 		return
 	}
@@ -37,6 +37,6 @@ func (v *versionStruct) Set(value string) (err error) {
 	return
 }
 
-func (v versionStruct) Get() (ret *goversion.Version) {
+func (v VersionStruct) Get() (ret *goversion.Version) {
 	return v.version
 }

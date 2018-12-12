@@ -1,8 +1,8 @@
-package main
+package coremgt
 
-// elementManifest describe details on elements.
+// ElementManifest describe details on elements.
 // By default, it helps reading the MANIFEST.MF from java as a yaml file, clenaed before.
-type elementManifest struct {
+type ElementManifest struct {
 	Version        string `yaml:"Plugin-Version"`
 	Name           string `yaml:"Extension-Name"`
 	ShortName      string `yaml:"Short-Name"`
@@ -14,7 +14,15 @@ type elementManifest struct {
 	commitID       string // Commit ID for groovy files
 }
 
-func (e *elementManifest)GetVersion() (ret versionStruct, err error){
+func (e *ElementManifest) GetVersion() (ret VersionStruct, err error) {
 	err = ret.Set(e.Version)
+	return
+}
+
+// NewElementManifest return a element manifest with details
+func NewElementManifest(typ, name string) (ret *ElementManifest) {
+	ret = new(ElementManifest)
+	ret.elementType = typ
+	ret.Name = name
 	return
 }

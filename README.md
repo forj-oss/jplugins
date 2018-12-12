@@ -177,4 +177,11 @@ NOTE2: To use docker go, we load a build environment `source build_env.sh` or `b
     - NewVersion: New plugin version
     - Title: plugin title
 
+- How to create a feature file (jplugins.lst) from an existing jenkins installation?
+    It generates a jplugins.lst from the default Jenkins home plugins.
+
+    ```bash
+    jplugins init features --force
+    ```
+
 Forj team
