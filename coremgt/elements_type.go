@@ -24,10 +24,10 @@ type ElementsType struct {
 	list      map[string]Elements
 	supported []string
 
-	repoPath string
-	repoURL  []*url.URL
-	useLocal bool
-	noDeps   bool
+	repoPath       string
+	repoURL        []*url.URL
+	useLocal       bool
+	noDeps         bool
 	supportContext map[string]map[string]string
 
 	ref *Repository
@@ -283,8 +283,6 @@ func (e *ElementsType) AddSupportContext(elementType, key, value string) {
 	e.supportContext[elementType] = properties
 }
 
-
-
 // **************** Misc ************************************
 
 // Read the file given
@@ -326,7 +324,7 @@ func (e *ElementsType) WriteSimple(file string, cols int) (err error) {
 	featureFile := simplefile.NewSimpleFile(file, 2)
 	for elementType, plugins := range e.list {
 		for name := range plugins {
-			featureFile.Add(1, elementType, name)
+			featureFile.AddWithKeyIndex(1, elementType, name)
 		}
 	}
 	err = featureFile.WriteSorted(":")
@@ -550,7 +548,21 @@ func (e *ElementsType) add(fields ...string) (element Element, err error) {
 		return
 	}
 
-	element.CompleteFromContext(e)
+	// Check if context should be used to complete the element data.
+	context := true
+	if v, found := e.supportContext[elementType]; found {
+		value := ""
+		value, found = v["noMoreContext"]
+		gotrace.Trace("%s has noMoreContext value to %s", elementType, value)
+		if found && value == "true" {
+			context = false
+		}
+	}
+
+	// Add more element information from the context
+	if context {
+		element.CompleteFromContext(e)
+	}
 
 	if existing, found := elements[element.Name()]; found {
 		// Keep the most recent version (base constraint)

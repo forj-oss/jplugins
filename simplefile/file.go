@@ -32,8 +32,11 @@ func NewSimpleFile(filename string, cols int) (ret *SimpleFile) {
 	return
 }
 
-// Add fields to a simple data line
-func (s *SimpleFile) Add(index int, data ...string) {
+// AddWithKeyIndex add fields to a simple data line and set key as field value (index)
+func (s *SimpleFile) AddWithKeyIndex(index int, data ...string) {
+	if len(data) == 0 {
+		return
+	}
 	if index >= len(data) {
 		index = 0
 	}
@@ -48,7 +51,26 @@ func (s *SimpleFile) Add(index int, data ...string) {
 	s.data[data[index]] = Line{data: cols}
 }
 
-// WriteSimpleSortedFile save the Simple file from data loaded
+// AddWithKeyString add fields to a simple data line and index them thanks to the key string.
+func (s *SimpleFile) AddWithKeyString(key string, data ...string) {
+	if len(data) == 0 {
+		return
+	}
+	if key == "" {
+		key = data[0]
+	}
+	cols := make([]string, 0, s.cols)
+	for curIndex, field := range data {
+		if curIndex >= s.cols {
+			break
+		}
+		cols = append(cols, field)
+	}
+
+	s.data[key] = Line{data: cols}
+}
+
+// WriteSorted save the Simple file from data loaded
 func (s *SimpleFile) WriteSorted(sep string) (_ error) {
 
 	if sep == "" {

@@ -99,7 +99,7 @@ func (p *Plugins) ExtractTopElements() (identified *Plugins) {
 func (p *Plugins) WriteSimple(file string, cols int) (err error) {
 	featureFile := simplefile.NewSimpleFile(file, 2)
 	for name := range p.list {
-		featureFile.Add(1, "plugin", name)
+		featureFile.AddWithKeyIndex(1, "plugin", name)
 	}
 	err = featureFile.WriteSorted(":")
 	return

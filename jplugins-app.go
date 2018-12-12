@@ -89,9 +89,10 @@ func (a *jPluginsApp) writeLockFile(lockFileName string, lockData *core.PluginsS
 
 func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, lockData *core.PluginsStatus) (_ bool) {
 	gotrace.Trace("Loading constraints...")
-	if gotrace.IsInfoMode() {
+	if gotrace.IsDebugMode() {
 		fmt.Printf("Reading %s\n--------\n", featureFileName)
 	}
+	gotrace.Info("Reading %s", featureFileName)
 	fd, err := os.Open(featureFile)
 	if err != nil {
 		gotrace.Error("Unable to read '%s'. %s", featureFileName, err)
@@ -108,7 +109,7 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 	fileScan := bufio.NewScanner(fd)
 	for fileScan.Scan() {
 		line := strings.Trim(fileScan.Text(), " \n")
-		if gotrace.IsInfoMode() {
+		if gotrace.IsDebugMode() {
 			fmt.Printf("== %s ==\n", line)
 		}
 		lockData.CheckElementLine(line, func(ftype, name, version string) {
@@ -136,7 +137,7 @@ func (a *jPluginsApp) readFeatures(featurePath, featureFile, featureURL string, 
 		return false
 	}
 
-	if gotrace.IsInfoMode() {
+	if gotrace.IsDebugMode() {
 		fmt.Println("--------")
 	}
 	gotrace.Trace("Identifying version from constraints...")
@@ -213,7 +214,8 @@ func (a *jPluginsApp) readFromSimpleFormat(filepath, fileName string) (elements 
 	elements = core.NewElementsType()
 
 	elements.AddSupport("plugin", "groovy")
-
+	elements.AddSupportContext("groovy", "noMoreContext", "true")
+	
 	err := elements.Read(file, 3)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open file simple file format'%s'. %s", file, err)

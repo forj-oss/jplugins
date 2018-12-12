@@ -46,10 +46,10 @@ func (s *PluginsStatus) WriteSimple(file string) (err error) {
 	lockFile := simplefile.NewSimpleFile(file, 3)
 
 	for name, plugin := range s.plugins {
-		lockFile.Add(1, "plugin", name, plugin.newVersion.String())
+		lockFile.AddWithKeyString("1-" + name, "plugin", name, plugin.newVersion.String())
 	}
-	for name := range s.groovies {
-		lockFile.Add(1, "groovy", name)
+	for name, groovy := range s.groovies {
+		lockFile.AddWithKeyString("2-" + name, "groovy", name, groovy.newCommit)
 	}
 
 	err = lockFile.WriteSorted(":")
@@ -367,7 +367,7 @@ func (s *PluginsStatus) CheckFeature(name string) (_ error) {
 	fileScan := bufio.NewScanner(fd)
 	for fileScan.Scan() {
 		line := strings.Trim(fileScan.Text(), " \n")
-		if gotrace.IsInfoMode() {
+		if gotrace.IsDebugMode() {
 			fmt.Printf("== >> %s ==\n", line)
 		}
 		s.CheckElementLine(line, func(ftype, fname, version string) {
@@ -395,7 +395,7 @@ func (s *PluginsStatus) CheckGroovy(name, groovyPath string) error {
 		if groovy = s.addGroovy(name, groovyPath); groovy == nil {
 			return fmt.Errorf("Unable to add %s several times", name)
 		}
-		gotrace.Info("New groovy '%s' identified.", name)
+		gotrace.Trace("New groovy '%s' identified.", name)
 		s.groovies[name] = groovy
 	}
 	return nil
@@ -412,7 +412,8 @@ func (s *PluginsStatus) CheckPlugin(name, versionConstraints string, parentDepen
 		if plugin = s.addPlugin(VersionStruct{}, refPlugin); plugin == nil {
 			return fmt.Errorf("Unable to add %s several times", name)
 		}
-		gotrace.Info("New plugin '%s' identified.", name)
+		plugin.oldVersion.Set("new")
+		gotrace.Trace("New plugin '%s' identified.", name)
 	}
 
 	if versionConstraints != "" {
