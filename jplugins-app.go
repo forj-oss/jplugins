@@ -37,6 +37,7 @@ const (
 	defaultFeaturesRepoURL  = "https://github.com/forj-oss/" + defaultFeaturesRepoName
 	defaultJenkinsHome      = "/var/jenkins_home"
 	lockFileName            = "jplugins.lock"
+	lockBakFileName         = "jplugins.lock.bak"
 	featureFileName         = "jplugins.lst"
 	preInstalledFileName    = "jplugins-preinstalled.lst"
 )

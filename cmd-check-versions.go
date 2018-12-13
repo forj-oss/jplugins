@@ -19,8 +19,9 @@ type cmdCheckVersions struct {
 	usePreInstalled  *bool
 	preInstalledPath *string
 
-	pluginsLock   *string
-	usePluginLock *bool
+	pluginsLock         *string
+	usePluginLock       *bool
+	usePluginLockBackup *bool
 
 	featureRepoPath    *string
 	featureRepoURL     *string
@@ -40,6 +41,7 @@ const (
 	defaultExportFile = "updates.json"
 	jenkinsHomeCheck  = "Jenkins Home"
 	lockCheck         = "jplugins lock file"
+	lockBakCheck      = "jplugins backup lock file"
 	featuresCheck     = "jplugins features file"
 	preInstallCheck   = "jplugins pre-installed file"
 )
@@ -54,6 +56,7 @@ func (c *cmdCheckVersions) init() {
 
 	c.pluginsLock = c.cmd.Flag("lock-file", "Path to the jplugins.lock file.").Default(".").String()
 	c.usePluginLock = c.cmd.Flag("use-lock-file", "To use lock file exclusively.").Bool()
+	c.usePluginLockBackup = c.cmd.Flag("use-bak-lock-file", "To use backup lock file as old version and compare with new lock file.").Bool()
 
 	c.featureRepoPath = c.cmd.Flag("features-repo-path", "Path to a feature repository. "+
 		"By default, jplugins store the repo clone in jplugins cache directory.").Default(defaultFeaturesRepoPath).String()
@@ -115,8 +118,9 @@ func (c *cmdCheckVersions) checkOptions(state, use bool, element, where string) 
 func (c *cmdCheckVersions) identifySource() (choices *utils.UpdatesSelect) {
 	choices = utils.NewUpdatesSelect()
 
-	c.forcely = *c.useJenkinsHome || *c.usePluginLock || *c.usePreInstalled || *c.usePluginFeature
+	c.forcely = *c.useJenkinsHome || *c.usePluginLock || *c.usePreInstalled || *c.usePluginFeature || *c.usePluginLockBackup
 
+	// A Jenkins home is found if it contains plugins and init.groovy.d directories by default in /var/jenkins_home
 	choices.SetCheck(jenkinsHomeCheck, func() bool {
 		return c.checkOptions(
 			App.checkJenkinsHome(),
@@ -129,6 +133,13 @@ func (c *cmdCheckVersions) identifySource() (choices *utils.UpdatesSelect) {
 			App.checkSimpleFormatFile(*c.pluginsLock, lockFileName),
 			*c.usePluginLock, "lock file",
 			path.Join(*c.pluginsLock, lockFileName))
+	})
+
+	choices.SetCheck(lockBakCheck, func() bool {
+		return c.checkOptions(
+			App.checkSimpleFormatFile(*c.pluginsLock, lockBakFileName),
+			*c.usePluginLock, "backup lock file",
+			path.Join(*c.pluginsLock, lockBakFileName))
 	})
 
 	choices.SetCheck(preInstallCheck, func() bool {
@@ -145,6 +156,8 @@ func (c *cmdCheckVersions) identifySource() (choices *utils.UpdatesSelect) {
 			path.Join(*c.pluginsFeaturePath, *c.pluginsFeatureFile))
 	})
 
+	// Depending on file/path existence, the first choice which match will be applied.
+	// So, the declaration order define the choice order test.
 	choices.SetChoice("Checking features, pre-installed and lock files against Jenkins home",
 		c.localJenkinsHomeUpdates, jenkinsHomeCheck, lockCheck, featuresCheck, preInstallCheck)
 
@@ -153,6 +166,9 @@ func (c *cmdCheckVersions) identifySource() (choices *utils.UpdatesSelect) {
 
 	choices.SetChoice("Checking lock file against Jenkins home",
 		c.localJenkinsHomeUpdates, jenkinsHomeCheck, lockCheck)
+
+	choices.SetChoice("Checking lock files history",
+		c.localJenkinsHomeUpdates, lockBakCheck, lockCheck)
 
 	choices.SetChoice("Checking features file against Jenkins home",
 		c.localJenkinsHomeUpdates, jenkinsHomeCheck, featuresCheck)
