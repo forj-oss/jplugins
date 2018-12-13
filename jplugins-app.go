@@ -272,15 +272,17 @@ func (a *jPluginsApp) setVersion() {
 
 	if PRERELEASE {
 		version += " pre-release V" + VERSION
+	} else if build_tag == "false" {
+		version += " pre-version V" + VERSION
 	} else {
 		version += " V" + VERSION
 	}
 
-	if build_branch != "master" {
+	if build_branch != "master" && build_branch != "HEAD" {
 		version += fmt.Sprintf(" branch %s", build_branch)
 	}
 	if build_tag == "false" {
-		version += fmt.Sprintf(" patched - %s - %s", build_date, build_commit)
+		version += fmt.Sprintf(" - %s - %s", build_date, build_commit)
 	}
 
 	a.app.Version(version).Author(AUTHOR)
