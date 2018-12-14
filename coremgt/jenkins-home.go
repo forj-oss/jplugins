@@ -267,7 +267,7 @@ func (j *JenkinsHome) install(elementsType *ElementsType, featureRepoPath string
 			pluginObj := newPluginsStatusDetails()
 			pluginObj.setVersion(plugin.Version)
 			pluginObj.name = plugin.ExtensionName
-			pluginObj.sha256Version = plugin.checkSumSha256
+			pluginObj.newSha256Version = plugin.checkSumSha256
 			if !gotrace.IsDebugMode() {
 				fmt.Printf(nameFormat, displayName)
 			}
@@ -282,7 +282,7 @@ func (j *JenkinsHome) install(elementsType *ElementsType, featureRepoPath string
 					if !pluginObj.checkSumVerified {
 						notVerified = " not verified!"
 					}
-					fmt.Printf(" installed - "+pluginVersionFormat+" sha256:%s%s\n", plugin.Version, pluginObj.sha256Version, notVerified)
+					fmt.Printf(" installed - "+pluginVersionFormat+" sha256:%s%s\n", plugin.Version, pluginObj.newSha256Version, notVerified)
 				}
 			}
 		}
