@@ -192,7 +192,15 @@ func (s *PluginsStatus) AddPluginStatus(plugin *Plugin, old bool) (_ error) {
 	if !found {
 		pluginStatus = newPluginsStatusDetails()
 		pluginStatus.name = plugin.Name()
+		s.plugins[plugin.ExtensionName] = pluginStatus
 	}
+	
+	if pluginStatus.title == "" {
+		if pluginRef, found := s.ref.Get(pluginStatus.name); found {
+			pluginStatus.title = pluginRef.Title
+		}
+	}
+
 	if old {
 		version = &pluginStatus.oldVersion
 	} else {
@@ -230,23 +238,23 @@ func (s *PluginsStatus) AddGroovyStatus(groovy *Groovy, old bool) (_ error) {
 		return fmt.Errorf("PluginsStatus object is nil")
 	}
 
-	var version *VersionStruct
-	pluginStatus, found := s.plugins[groovy.Name()]
+	var version *string
+	groovyStatus, found := s.groovies[groovy.Name()]
 
 	if !found {
-		pluginStatus = newPluginsStatusDetails()
-		pluginStatus.name = groovy.Name()
+		groovyStatus = newGroovyStatusDetails(groovy.Name(), "")
+		s.groovies[groovy.Name()] = groovyStatus
 	}
 	if old {
-		version = &pluginStatus.oldVersion
+		version = &groovyStatus.oldCommit
 	} else {
-		version = &pluginStatus.newVersion
+		version = &groovyStatus.newCommit
 	}
 
-	if version.String() != "" {
-		return fmt.Errorf("Unable to update the plugin status %s with version %s. Already set", pluginStatus.name, groovy.CommitID)
+	if *version != "" {
+		return fmt.Errorf("Unable to update the plugin status %s with version %s. Already set", groovyStatus.name, groovy.CommitID)
 	}
-	version.Set(groovy.Md5)
+	*version = groovy.CommitID
 
 	return
 }

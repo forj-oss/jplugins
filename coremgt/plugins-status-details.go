@@ -22,9 +22,9 @@ const (
 type pluginsStatusDetails struct {
 	name             string
 	title            string
-	oldVersion       VersionStruct // For plugin
+	oldVersion       VersionStruct
 	newVersion       VersionStruct
-	oldSha256Version string // for groovy
+	oldSha256Version string
 	newSha256Version string
 	checkSumVerified bool
 	minDepVersion    VersionStruct
