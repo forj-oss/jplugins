@@ -22,9 +22,10 @@ const (
 type pluginsStatusDetails struct {
 	name             string
 	title            string
-	oldVersion       VersionStruct
+	oldVersion       VersionStruct // For plugin
 	newVersion       VersionStruct
-	sha256Version    string
+	oldSha256Version string // for groovy
+	newSha256Version string
 	checkSumVerified bool
 	minDepVersion    VersionStruct
 	minDepName       string
@@ -200,13 +201,13 @@ func (sd *pluginsStatusDetails) installIt(destPath string) (err error) {
 	}
 
 	downloadedSHA256 := base64.StdEncoding.EncodeToString(sha256File.Sum(nil))
-	if sd.sha256Version != "" {
-		if sd.sha256Version != downloadedSHA256 {
-			return fmt.Errorf("Failed to copy %s to %s. %s has an invalid check sum. Expect '%s'. Got '%s'", pluginURL, destFile, path.Base(sd.name)+".hpi", sd.sha256Version, downloadedSHA256)
+	if sd.newSha256Version != "" {
+		if sd.newSha256Version != downloadedSHA256 {
+			return fmt.Errorf("Failed to copy %s to %s. %s has an invalid check sum. Expect '%s'. Got '%s'", pluginURL, destFile, path.Base(sd.name)+".hpi", sd.newSha256Version, downloadedSHA256)
 		}
 		sd.checkSumVerified = true
 	} else {
-		sd.sha256Version = downloadedSHA256
+		sd.newSha256Version = downloadedSHA256
 		gotrace.Trace("%s checksum not checked.", pluginURL)
 	}
 

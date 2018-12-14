@@ -3,13 +3,13 @@ package coremgt
 import (
 	"bufio"
 	"fmt"
+	"jplugins/simplefile"
 	"net/url"
 	"os"
 	"path"
 	"sort"
 	"strconv"
 	"strings"
-	"jplugins/simplefile"
 
 	"github.com/forj-oss/utils"
 
@@ -17,6 +17,8 @@ import (
 
 	"github.com/forj-oss/forjj-modules/trace"
 )
+
+// TODO: Replace plugins/groovies with a list of old/new elements based on interface
 
 // PluginsStatus represents the jenkins update status
 type PluginsStatus struct {
@@ -46,10 +48,10 @@ func (s *PluginsStatus) WriteSimple(file string) (err error) {
 	lockFile := simplefile.NewSimpleFile(file, 3)
 
 	for name, plugin := range s.plugins {
-		lockFile.AddWithKeyString("1-" + name, "plugin", name, plugin.newVersion.String())
+		lockFile.AddWithKeyString("1-"+name, "plugin", name, plugin.newVersion.String())
 	}
 	for name, groovy := range s.groovies {
-		lockFile.AddWithKeyString("2-" + name, "groovy", name, groovy.newCommit)
+		lockFile.AddWithKeyString("2-"+name, "groovy", name, groovy.newCommit)
 	}
 
 	err = lockFile.WriteSorted(":")
@@ -111,7 +113,7 @@ func (s *PluginsStatus) NewInstall() {
 // Compare only plugins against repository.
 // TODO: Compare groovies
 func (s *PluginsStatus) Compare() (_ error) {
-	
+
 	elements := s.installed.list[pluginType]
 	ref := s.ref
 	for name, plugin := range elements {
@@ -155,6 +157,100 @@ func (s *PluginsStatus) Compare() (_ error) {
 	return nil
 }
 
+// AddElement register an element version (plugin or groovy) as an old or new element
+//
+// TODO: replace switch by Element interface.
+//
+func (s *PluginsStatus) AddElement(element Element, old bool) (err error) {
+	if s == nil {
+		return fmt.Errorf("PluginsStatus object is nil")
+	}
+	switch elementType := element.GetType(); elementType {
+	case pluginType:
+		err = s.AddPluginStatus(element.(*Plugin), old)
+	case groovyType:
+		err = s.AddGroovyStatus(element.(*Groovy), old)
+	default:
+		return fmt.Errorf("%s type is not treated", elementType)
+	}
+
+	return
+}
+
+// AddPluginStatus register the plugin version as an old or new plugin
+//
+// TODO: replace switch by Element interface.
+//
+func (s *PluginsStatus) AddPluginStatus(plugin *Plugin, old bool) (_ error) {
+	if s == nil {
+		return fmt.Errorf("PluginsStatus object is nil")
+	}
+
+	var version *VersionStruct
+	pluginStatus, found := s.plugins[plugin.ExtensionName]
+
+	if !found {
+		pluginStatus = newPluginsStatusDetails()
+		pluginStatus.name = plugin.Name()
+	}
+	if old {
+		version = &pluginStatus.oldVersion
+	} else {
+		version = &pluginStatus.newVersion
+	}
+
+	if version.String() != "" {
+		return fmt.Errorf("Unable to update the plugin status %s with version %s. Already set", pluginStatus.name, plugin.Version)
+	}
+	version.Set(plugin.Version)
+
+	if old {
+		// Do not verify latest version match on an old version even if the old one can be the latest.
+		return
+	}
+
+	pluginVersions := s.ref.GetOrderedVersions(plugin.Name())
+
+	if pluginVersions == nil || pluginVersions.Len() == 0 {
+		return
+	}
+
+	if plugin.Version == pluginVersions[0].Original() {
+		pluginStatus.latest = true
+	}
+	return
+}
+
+// AddGroovyStatus register the groovy commitID as an old or new groovy commit
+//
+// TODO: replace switch by Element interface.
+//
+func (s *PluginsStatus) AddGroovyStatus(groovy *Groovy, old bool) (_ error) {
+	if s == nil {
+		return fmt.Errorf("PluginsStatus object is nil")
+	}
+
+	var version *VersionStruct
+	pluginStatus, found := s.plugins[groovy.Name()]
+
+	if !found {
+		pluginStatus = newPluginsStatusDetails()
+		pluginStatus.name = groovy.Name()
+	}
+	if old {
+		version = &pluginStatus.oldVersion
+	} else {
+		version = &pluginStatus.newVersion
+	}
+
+	if version.String() != "" {
+		return fmt.Errorf("Unable to update the plugin status %s with version %s. Already set", pluginStatus.name, groovy.CommitID)
+	}
+	version.Set(groovy.Md5)
+
+	return
+}
+
 // chooseNewVersion change the default new version of a locked plugin
 func (s *PluginsStatus) chooseNewVersion(name, version string) (_ bool) {
 	pluginLock, found := s.plugins[name]
@@ -176,7 +272,7 @@ func (s *PluginsStatus) addPlugin(version VersionStruct, pluginRef *RepositoryPl
 	}
 
 	ret = newPluginsStatusDetails().initFromRef(version, pluginRef)
-	ret.sha256Version = pluginRef.Sha256Version
+	ret.newSha256Version = pluginRef.Sha256Version
 	s.plugins[pluginRef.Name] = ret
 
 	return
@@ -209,7 +305,7 @@ func (s *PluginsStatus) DisplayUpdates() (_ bool) {
 	}
 
 	if len(s.plugins) == 0 && len(s.groovies) == 0 {
-		fmt.Print("No plugins or groovies updates detected.")
+		fmt.Println("No plugins or groovies updates detected.")
 		return true
 	}
 

@@ -388,7 +388,23 @@ func (e *ElementsType) GetRepoPlugin(props ...string) (ret Element) {
 
 // Compare the current list of plugins with the newList given
 // if the list has *Repository reference, the status will gave the latest boolean value.
-func (e *ElementsType) Compare(newList *ElementsType) (compare *PluginsStatus) {
+func (e *ElementsType) Compare(newList *ElementsType) (compare *PluginsStatus, err error) {
+	compare = NewPluginsStatus(e, e.ref)
+
+	for _, elements := range e.list {
+		for _, element := range elements {
+			if err = compare.AddElement(element, true) ; err != nil {
+				return
+			}
+		}
+	}
+	for _, elements := range newList.list {
+		for _, element := range elements {
+			if err = compare.AddElement(element, false) ; err != nil {
+				return
+			}
+		}
+	}
 	return
 }
 

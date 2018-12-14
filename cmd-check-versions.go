@@ -245,7 +245,7 @@ func (c *cmdCheckVersions) jenkinsUpdates(choice utils.UpdatesSelectChoice, stat
 	return nil
 }
 
-func (c *cmdCheckVersions) jenkinsLockUpdates(choice utils.UpdatesSelectChoice, states map[string]bool) error {
+func (c *cmdCheckVersions) jenkinsLockUpdates(choice utils.UpdatesSelectChoice, states map[string]bool) (err error) {
 	gotrace.Info(choice.Choice)
 
 	App.repository = core.NewRepository()
@@ -258,7 +258,7 @@ func (c *cmdCheckVersions) jenkinsLockUpdates(choice utils.UpdatesSelectChoice, 
 	oldElements, _ := App.readFromSimpleFormat(*c.pluginsLock, lockFileName + ".bak")
 
 	oldElements.SetRepository(repo)
-	c.updates = oldElements.Compare(newElements)
+	c.updates, err = oldElements.Compare(newElements)
 
-	return nil
+	return
 }
