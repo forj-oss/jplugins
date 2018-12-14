@@ -386,6 +386,12 @@ func (e *ElementsType) GetRepoPlugin(props ...string) (ret Element) {
 	return
 }
 
+// Compare the current list of plugins with the newList given
+// if the list has *Repository reference, the status will gave the latest boolean value.
+func (e *ElementsType) Compare(newList *ElementsType) (compare *PluginsStatus) {
+	return
+}
+
 /************************************************************************
  ***************** INTERNAL FUNCTIONS ***********************************
  ************************************************************************/

@@ -168,7 +168,7 @@ func (c *cmdCheckVersions) identifySource() (choices *utils.UpdatesSelect) {
 		c.localJenkinsHomeUpdates, jenkinsHomeCheck, lockCheck)
 
 	choices.SetChoice("Checking lock files history",
-		c.localJenkinsHomeUpdates, lockBakCheck, lockCheck)
+		c.jenkinsLockUpdates, lockBakCheck, lockCheck)
 
 	choices.SetChoice("Checking features file against Jenkins home",
 		c.localJenkinsHomeUpdates, jenkinsHomeCheck, featuresCheck)
@@ -241,6 +241,24 @@ func (c *cmdCheckVersions) jenkinsUpdates(choice utils.UpdatesSelectChoice, stat
 			return err
 		}
 	}
+
+	return nil
+}
+
+func (c *cmdCheckVersions) jenkinsLockUpdates(choice utils.UpdatesSelectChoice, states map[string]bool) error {
+	gotrace.Info(choice.Choice)
+
+	App.repository = core.NewRepository()
+	repo := App.repository
+	if !repo.LoadFromURL() {
+		return fmt.Errorf("Issue to load remote repository list")
+	}
+
+	newElements, _ := App.readFromSimpleFormat(*c.pluginsLock, lockFileName)
+	oldElements, _ := App.readFromSimpleFormat(*c.pluginsLock, lockFileName + ".bak")
+
+	oldElements.SetRepository(repo)
+	c.updates = oldElements.Compare(newElements)
 
 	return nil
 }
