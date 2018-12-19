@@ -1,5 +1,5 @@
-hash: 0c0a68cb679f686088ed99c03dee123cf45d71fbac5784d8a9f45e886b0cd341
-updated: 2018-11-29T15:07:12.416560098Z
+hash: cbc63f684ef1713c7fa80d99b615826f9245c7981c737fca38de45671ca94438
+updated: 2018-12-19T14:02:25.738223184Z
 imports:
 - name: github.com/alecthomas/kingpin
   version: 947dcec5ba9c011838740e680966fd7087a71d0d
@@ -29,6 +29,8 @@ imports:
   version: efa589957cd060542a26d2dd7832fd6a6c6c3ade
 - name: github.com/mattn/go-isatty
   version: 3fb116b820352b7f0c281308a4d6250c22d94e27
+- name: github.com/robpike/filter
+  version: 2984852a21833704a7dd2a52fb34240eb3ab11f9
 - name: golang.org/x/sys
   version: 4ed8d59d0b35e1e29334a206d1b3f38b1e5dfb31
   subpackages:
