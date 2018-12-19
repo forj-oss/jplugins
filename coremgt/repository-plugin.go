@@ -11,15 +11,16 @@ import (
 
 // RepositoryPlugin define the plugin from the referenced repository
 type RepositoryPlugin struct {
-	Dependencies   RepositoryDependencies
-	Name           string
-	Version        string
-	Title          string
-	Description    string `json:"excerpt"`
-	JenkinsVersion string `json:"requiredCore"`
-	Sha256Version  string `json:"sha256"`
-	versionHistory []VersionStruct
-	ref            *Repository
+	Dependencies     RepositoryDependencies
+	Name             string
+	Version          string
+	Title            string
+	Description      string `json:"excerpt"`
+	JenkinsVersion   string `json:"requiredCore"`
+	Sha256Version    string `json:"sha256"`
+	versionHistory   []VersionStruct
+	ref              *Repository
+	packageAvailable bool // true if the package is found in the repo.
 }
 
 func (p *RepositoryPlugin) loadPluginVersionList() []VersionStruct {

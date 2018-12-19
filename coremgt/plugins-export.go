@@ -12,20 +12,10 @@ import (
 )
 
 type PluginsExport struct {
-	json         []pluginJson
+	json         pluginsJson
 	exportFile   string
 	templateFile string
 	plugins      *PluginsStatus
-}
-
-type pluginsJson []pluginJson
-
-type pluginJson struct {
-	Name        string
-	ShortName   string
-	Description string
-	OldVersion  string
-	NewVersion  string
 }
 
 func NewPluginsExport(exportFile, templateFile string, size int) (ret *PluginsExport) {

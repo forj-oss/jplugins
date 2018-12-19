@@ -7,3 +7,4 @@ import:
 - package: github.com/forj-oss/utils
 - package: github.com/forj-oss/go-git
 - package: github.com/foize/go.fifo
+- package: github.com/robpike/filter
