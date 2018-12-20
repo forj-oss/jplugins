@@ -12,7 +12,7 @@ func (p pluginsJson) IsLast(index int) bool {
 
 // UpdatedList return a plugins list identifying only new versions.
 func (p pluginsJson) Newest() (ret pluginsJson) {
-	list := filter.Choose(p, IsNewer)
+	list := filter.Choose(p, IsUpdated)
 	ret = list.(pluginsJson)
 	return
 }
