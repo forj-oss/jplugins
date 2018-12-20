@@ -13,11 +13,14 @@ type pluginJson struct {
 }
 
 // IsNewer return true if the element identify a newer version
-func IsNewer(p pluginJson) (_ bool) {
-	if p.OldVersion == "" && p.NewVersion != "" {
-		return true
-	} else if p.OldVersion == "" && p.NewVersion == "" {
+func IsUpdated(p pluginJson) (_ bool) {
+	if p.OldVersion == "" {
+		if p.NewVersion != "" {
+			return true
+		}
 		return
+	} else if p.NewVersion == "" {
+		return true
 	} else {
 		oldVersion, _ := goversion.NewVersion(p.OldVersion)
 		newVersion, _ := goversion.NewVersion(p.NewVersion)
