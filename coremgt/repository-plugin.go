@@ -6,7 +6,7 @@ import (
 
 	"github.com/forj-oss/forjj-modules/trace"
 	"github.com/forj-oss/utils"
-	goversion "github.com/hashicorp/go-version"
+	//goversion "github.com/hashicorp/go-version"
 )
 
 // RepositoryPlugin define the plugin from the referenced repository
@@ -61,7 +61,9 @@ func (p *RepositoryPlugin) loadPluginVersionList() []VersionStruct {
 }
 
 // DetermineVersion select the appropriate version of a plugin depending on constraints.
-func (p *RepositoryPlugin) DetermineVersion(versionConstraints map[string]goversion.Constraints) (version VersionStruct, latest bool, err error) {
+func (p *RepositoryPlugin) DetermineVersion(plugin *pluginsStatusDetails) (version VersionStruct, latest bool, err error) {
+
+	versionConstraints := plugin.rules
 	// Search from version history
 	version = VersionStruct{}
 	version.Set(p.Version)
@@ -73,10 +75,15 @@ func (p *RepositoryPlugin) DetermineVersion(versionConstraints map[string]govers
 		if history == nil {
 			// Check first from central repository data
 			if constraints.Check(version.Get()) {
-				gotrace.Trace("0: %s - %s : OK", version.Get(), constraints)
-				continue
+				if plugin.packageAvailable(version.Get()) {
+					gotrace.Trace("0: %s - %s : OK", version.Get(), constraints)
+					continue
+				} else {
+					gotrace.Trace("0: %s - %s : PACKAGE NOT AVAILABLE", version.Get(), constraints)
+				}
+			} else {
+				gotrace.Trace("0: %s - %s : NO", version.Get(), constraints)
 			}
-			gotrace.Trace("0: %s - %s : NO", version.Get(), constraints)
 			gotrace.Trace("Getting more versions from history...")
 			// Load the history as we need to go further in the list
 			history = p.loadPluginVersionList()
@@ -94,6 +101,11 @@ func (p *RepositoryPlugin) DetermineVersion(versionConstraints map[string]govers
 		for _, version = range history {
 			if !constraints.Check(version.Get()) {
 				gotrace.Trace("%d: %s - %s : NO", iCount, version.Get(), constraints)
+				iCount++
+				continue
+			}
+			if !plugin.packageAvailable(version.Get()) {
+				gotrace.Trace("%d: %s - %s : PACKAGE NOT AVAILABLE", iCount, version.Get(), constraints)
 				iCount++
 				continue
 			}

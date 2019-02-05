@@ -156,6 +156,36 @@ func (sd *pluginsStatusDetails) setIsLatest() {
 	sd.latest = true
 }
 
+func (sd *pluginsStatusDetails) packageAvailable(version *goversion.Version) (found bool) {
+	var resp *http.Response
+	pluginURL := JenkinsRepoURL + "/" + JenkinsPluginRepo + "/" + sd.name + "/" + version.Original() + "/" + path.Base(sd.name) + ".hpi"
+	gotrace.Trace("Checking package from %s", pluginURL)
+	retry := 0
+	for {
+		var err error
+
+		resp, err = http.Get(pluginURL)
+		if err == nil {
+			break
+		}
+
+		if retry > retryLimit {
+			return
+
+		}
+		retry++
+		time.Sleep(retrySleepTime)
+		fmt.Printf("%d ", retry)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 404 {
+		return
+	}
+	return true
+}
+
 func (sd *pluginsStatusDetails) installIt(destPath string) (err error) {
 	var resp *http.Response
 	pluginURL := JenkinsRepoURL + "/" + JenkinsPluginRepo + "/" + sd.name + "/" + sd.newVersion.String() + "/" + path.Base(sd.name) + ".hpi"

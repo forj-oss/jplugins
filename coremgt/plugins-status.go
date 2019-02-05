@@ -546,7 +546,7 @@ func (s *PluginsStatus) DefinePluginsVersion() (_ bool) {
 			gotrace.Error("Plugin '%s' not found in the public repository. Ignored.", name)
 			return
 		}
-		if foundVersion, latest, err := refPlugin.DetermineVersion(plugin.rules); err != nil {
+		if foundVersion, latest, err := refPlugin.DetermineVersion(plugin); err != nil {
 			gotrace.Error("Unable to find a version for plugin '%s' which respect all rules. %s. Please fix it", name, err)
 		} else {
 			plugin.setVersion(foundVersion.String())
