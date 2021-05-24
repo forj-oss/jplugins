@@ -40,3 +40,4 @@ func (v *VersionStruct) Set(value string) (err error) {
 func (v VersionStruct) Get() (ret *goversion.Version) {
 	return v.version
 }
+
