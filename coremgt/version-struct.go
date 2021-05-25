@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/forj-oss/forjj-modules/trace"
 	goversion "github.com/hashicorp/go-version"
 )
 
@@ -25,11 +26,16 @@ func (v *VersionStruct) Set(value string) (err error) {
 	if value != "new" {
 
 		// Accept version with extra string suffixed. But keep just valid version string for goversion.
-		versionRegexp := regexp.MustCompile(`^([0-9][0-9A-Za-z\-~.]*)([^0-9A-Za-z\-~.].*)?$`)
+		versionRegexp := regexp.MustCompile(`^([0-9][0-9A-Za-z]*(\.[0-9][0-9A-Za-z]*)*([\-~+][0-9A-Za-z.]*)*)(.*)?$`)
 		matches := versionRegexp.FindStringSubmatch(value)
 		if matches == nil {
 			return fmt.Errorf("Undetected version string in '%s'", value)
 		}
+
+		if matches[4] != "" {
+			gotrace.Trace("VersionStruct.Set ignored %s from %s for goversion module", matches[4], value)
+		}
+		
 		v.version, err = goversion.NewVersion(matches[1])
 	} else {
 		v.version = nil

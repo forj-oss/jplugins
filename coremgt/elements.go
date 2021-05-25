@@ -15,7 +15,11 @@ func (l Elements) DisplayDependencies() {
 
 	for _, element := range l {
 		version, _ := element.GetVersion()
-		list = append(list, element.GetType()+":"+element.Name()+":"+version.Get().Original())
+		if v := version.Get() ; v == nil {
+			list = append(list, element.GetType()+":"+element.Name()+":"+version.String()+" - invalid version format")
+		} else {
+			list = append(list, element.GetType()+":"+element.Name()+":"+v.Original())
+		}
 	}
 	fmt.Printf("%d Deps:\n", len(list))
 	sort.Strings(list)
